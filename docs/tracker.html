@@ -86,7 +86,7 @@ h1 { font-size: 1.6rem; font-weight: 900; margin: 0; text-wrap: balance; }
 <script>
 // Edit these values to update the page.
 const UPDATED = "Updated 1 Nov 2026";
-const NOW = "Writing the base app: login, groups, status feed, map and meetups.";
+const NOW = "Base app is built and on GitHub. Waiting for your Supabase project so I can connect it and test everything for real.";
 const LIVE_URL = "";
 const SECTIONS = [
   ["Setup", [
@@ -94,27 +94,28 @@ const SECTIONS = [
     ["App idea + first decisions", "English, several groups with invite codes, Supabase backend, choosable location mode.", "done"],
   ]],
   ["Foundation", [
-    ["App skeleton", "React + Vite website, phone-first layout, bottom tab bar.", "doing"],
-    ["Look and feel", "Colours, Nunito font, chunky buttons, dark mode.", "todo"],
-    ["Database + security rules", "Tables for profiles, groups, statuses, locations, meetups. Only group members can see group data.", "todo"],
-    ["Create Supabase project", "You make a free project in the EU and send me the URL + public key.", "todo"],
-    ["Login", "Sign in with email link or Google. Pick a name and username.", "todo"],
+    ["App skeleton", "React + Vite website, phone-first layout, bottom tab bar.", "done"],
+    ["Look and feel", "Colours, Nunito font, chunky buttons, dark mode.", "done"],
+    ["Database + security rules", "Written: profiles, groups, statuses, locations, meetups. Only group members can see group data.", "done"],
+    ["Connect + first real test", "Run the database setup, sign up two accounts, try every screen.", "todo"],
+    ["Create Supabase project", "You make a free project in the EU and send me the URL + public key.", "you"],
+    ["Login", "Sign in with email link or Google. Pick a name and username.", "done"],
   ]],
   ["Groups", [
-    ["Create + join groups", "Make a group, invite friends with a 6-letter code, switch between groups.", "todo"],
-    ["Members list", "See who's in the group and their latest status.", "todo"],
+    ["Create + join groups", "Make a group, invite friends with a 6-letter code, switch between groups.", "done"],
+    ["Members list", "See who's in the group and their latest status.", "done"],
   ]],
   ["Status feed", [
-    ["What are you doing?", "Post a short status with an emoji. Friends see it right away.", "todo"],
-    ["Live feed", "New posts show up without reloading.", "todo"],
+    ["What are you doing?", "Post a short status with an emoji. Friends see it right away.", "done"],
+    ["Live feed", "New posts show up without reloading.", "done"],
   ]],
   ["Location", [
-    ["Location mode", "Each person picks: Off, Tap to share, or Live while the app is open.", "todo"],
-    ["Friends map", "Map with everyone's last shared spot and how long ago.", "todo"],
+    ["Location mode", "Each person picks: Off, Tap to share, or Live while the app is open.", "done"],
+    ["Friends map", "Map with everyone's last shared spot and how long ago.", "done"],
   ]],
   ["Meetups", [
-    ["Open a meetup request", "Party, eat, sport, chill, gaming or other, with time and place.", "todo"],
-    ["Answer requests", "I'm in / Maybe / Can't, and see who's coming.", "todo"],
+    ["Open a meetup request", "Party, eat, sport, chill, gaming or other, with time and place.", "done"],
+    ["Answer requests", "I'm in / Maybe / Can't, and see who's coming.", "done"],
   ]],
   ["Go live", [
     ["Website on Cloudflare Pages", "Auto-deploys from GitHub on every push.", "todo"],
