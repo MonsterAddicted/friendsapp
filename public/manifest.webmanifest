@@ -1,0 +1,10 @@
+{
+  "name": "friendsapp",
+  "short_name": "friendsapp",
+  "description": "Your friend group in one app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f8",
+  "theme_color": "#ff7a1a",
+  "icons": []
+}

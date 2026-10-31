@@ -1,0 +1,160 @@
+<title>friendsapp Progress</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Layout: one narrow column of grouped milestone cards, dark app-style like the Capi tracker */
+:root {
+  color-scheme: dark;
+  --bg: #131f24;
+  --panel: #18272e;
+  --line: #37464f;
+  --text: #f1f7fb;
+  --muted: #a9bcc6;
+  --green: #58cc02;
+  --green-deep: #46a302;
+  --done-bg: #1f3a17;
+  --doing-bg: #3a3214;
+  --amber: #ffc800;
+  --you-bg: #12324a;
+  --blue: #1cb0f6;
+  --todo-bg: #202f36;
+  --font: "Nunito", "Segoe UI", system-ui, sans-serif;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); }
+.wrap { max-width: 500px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+h1 { font-size: 1.6rem; font-weight: 900; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-weight: 600; margin: 4px 0 0; line-height: 1.45; }
+.box { background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.prog-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.prog-head b { font-size: 1.15rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.prog-head span { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.bar { height: 14px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--green); border-radius: 99px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.15), inset 0 3px 0 rgba(255,255,255,.25); }
+.now { border-color: var(--amber); }
+.now .eyebrow { color: var(--amber); }
+.eyebrow { font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.now p { margin: 0; font-weight: 700; line-height: 1.45; }
+.btn { display: block; text-align: center; background: var(--green); color: #0d1a05; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; text-decoration: none; padding: 14px; border-radius: 14px; box-shadow: 0 4px 0 var(--green-deep); }
+.btn.off { background: var(--line); color: var(--muted); box-shadow: 0 4px 0 #26333a; }
+.small { color: var(--muted); font-size: .85rem; font-weight: 600; line-height: 1.5; margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.section { display: flex; flex-direction: column; gap: 8px; }
+.group { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.item { border-radius: 12px; padding: 12px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--todo-bg); }
+.item.done { background: var(--done-bg); }
+.item.doing { background: var(--doing-bg); outline: 2px solid var(--amber); }
+.item.you { background: var(--you-bg); outline: 2px solid var(--blue); }
+.row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.row h3 { margin: 0; font-size: 1rem; font-weight: 800; min-width: 0; }
+.item p { margin: 0; color: var(--muted); font-size: .85rem; font-weight: 600; line-height: 1.45; }
+.pill { flex: none; font-size: .68rem; font-weight: 900; letter-spacing: .06em; padding: 3px 10px; border-radius: 99px; text-transform: uppercase; }
+.pill.done { background: var(--green); color: #0d1a05; }
+.pill.doing { background: var(--amber); color: #2b2200; }
+.pill.you { background: var(--blue); color: #04263a; }
+.pill.todo { background: var(--line); color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .item.doing { animation: pulse 2s ease-in-out infinite; } @keyframes pulse { 50% { outline-color: transparent; } } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>friendsapp</h1>
+    <p class="sub">Your friend group in one app: what everyone is doing, where they are, and who's up for a meetup.</p>
+  </header>
+
+  <div class="box">
+    <div class="prog-head"><b id="count"></b><span id="updated"></span></div>
+    <div class="bar"><i id="fill"></i></div>
+  </div>
+
+  <div class="box now">
+    <p class="eyebrow">Working on right now</p>
+    <p id="now"></p>
+  </div>
+
+  <div class="box">
+    <a class="btn off" id="open">Not online yet</a>
+    <p class="small" id="openText">The live link appears here once the website is on Cloudflare.</p>
+    <div class="legend">
+      <span class="pill done">Done</span><span class="pill doing">Working on it</span><span class="pill you">Your turn</span><span class="pill todo">To do</span>
+    </div>
+  </div>
+
+  <div id="list" style="display:flex;flex-direction:column;gap:18px"></div>
+</div>
+
+<script>
+// Edit these values to update the page.
+const UPDATED = "Updated 1 Nov 2026";
+const NOW = "Writing the base app: login, groups, status feed, map and meetups.";
+const LIVE_URL = "";
+const SECTIONS = [
+  ["Setup", [
+    ["Repo, vault, Node.js", "GitHub repo cloned, Obsidian vault folders, Node.js installed.", "done"],
+    ["App idea + first decisions", "English, several groups with invite codes, Supabase backend, choosable location mode.", "done"],
+  ]],
+  ["Foundation", [
+    ["App skeleton", "React + Vite website, phone-first layout, bottom tab bar.", "doing"],
+    ["Look and feel", "Colours, Nunito font, chunky buttons, dark mode.", "todo"],
+    ["Database + security rules", "Tables for profiles, groups, statuses, locations, meetups. Only group members can see group data.", "todo"],
+    ["Create Supabase project", "You make a free project in the EU and send me the URL + public key.", "todo"],
+    ["Login", "Sign in with email link or Google. Pick a name and username.", "todo"],
+  ]],
+  ["Groups", [
+    ["Create + join groups", "Make a group, invite friends with a 6-letter code, switch between groups.", "todo"],
+    ["Members list", "See who's in the group and their latest status.", "todo"],
+  ]],
+  ["Status feed", [
+    ["What are you doing?", "Post a short status with an emoji. Friends see it right away.", "todo"],
+    ["Live feed", "New posts show up without reloading.", "todo"],
+  ]],
+  ["Location", [
+    ["Location mode", "Each person picks: Off, Tap to share, or Live while the app is open.", "todo"],
+    ["Friends map", "Map with everyone's last shared spot and how long ago.", "todo"],
+  ]],
+  ["Meetups", [
+    ["Open a meetup request", "Party, eat, sport, chill, gaming or other, with time and place.", "todo"],
+    ["Answer requests", "I'm in / Maybe / Can't, and see who's coming.", "todo"],
+  ]],
+  ["Go live", [
+    ["Website on Cloudflare Pages", "Auto-deploys from GitHub on every push.", "todo"],
+    ["Install on phone (home screen)", "Works like an app before the store versions exist.", "todo"],
+    ["App icon + logo", "You make them in ChatGPT, I add them.", "todo"],
+  ]],
+  ["Phone apps", [
+    ["Android app (Capacitor)", "Same app wrapped for Android.", "todo"],
+    ["iOS app (Capacitor)", "Needs a Mac or cloud build + Apple Developer account.", "todo"],
+    ["Background location", "Live location even when the app is closed (phone apps only).", "todo"],
+  ]],
+];
+
+const label = { done: "Done", doing: "Working on it", you: "Your turn", todo: "To do" };
+let total = 0, done = 0;
+const list = document.getElementById("list");
+for (const [name, items] of SECTIONS) {
+  const sec = document.createElement("section");
+  sec.className = "section";
+  sec.innerHTML = `<p class="eyebrow">${name}</p>`;
+  const g = document.createElement("div");
+  g.className = "group";
+  for (const [t, d, s] of items) {
+    total++; if (s === "done") done++;
+    const it = document.createElement("div");
+    it.className = "item " + s;
+    it.innerHTML = `<div class="row"><h3>${t}</h3><span class="pill ${s}">${label[s]}</span></div><p>${d}</p>`;
+    g.appendChild(it);
+  }
+  sec.appendChild(g);
+  list.appendChild(sec);
+}
+document.getElementById("count").textContent = `${done} of ${total} milestones done`;
+document.getElementById("fill").style.width = Math.max(4, done / total * 100) + "%";
+document.getElementById("updated").textContent = UPDATED;
+document.getElementById("now").textContent = NOW;
+if (LIVE_URL) {
+  const a = document.getElementById("open");
+  a.className = "btn"; a.href = LIVE_URL; a.target = "_blank"; a.rel = "noopener";
+  a.textContent = "Open friendsapp: " + LIVE_URL.replace(/^https?:\/\//, "");
+  document.getElementById("openText").textContent = "Live for friends. On your phone: open the link, then \"Add to Home Screen\" to install it.";
+}
+</script>
