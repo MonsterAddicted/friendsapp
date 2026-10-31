@@ -202,6 +202,13 @@ create policy "change answer" on public.meetup_responses for update to authentic
 create policy "remove answer" on public.meetup_responses for delete to authenticated
   using (user_id = auth.uid());
 
+-- Table access for signed-in users (the security rules above still decide which rows)
+grant select, insert, update, delete on
+  public.profiles, public.groups, public.group_members, public.statuses,
+  public.locations, public.meetups, public.meetup_responses
+to authenticated;
+grant execute on function public.is_member(uuid), public.shares_group(uuid), public.location_visible(uuid) to authenticated;
+
 -- ============ LIVE UPDATES ============
 
 alter publication supabase_realtime add table
