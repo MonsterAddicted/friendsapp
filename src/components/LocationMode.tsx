@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { niceError, useApp } from '../lib/app'
+import { niceError, useApp, useTick } from '../lib/app'
 import { clearPosition, locationErrorText, shareOnce } from '../lib/location'
 import type { LocationMode } from '../types'
 
@@ -67,8 +67,58 @@ export function LocationModePicker() {
           Share my location now
         </button>
       )}
+      {mode !== 'off' && <Ghost />}
       {done && <p className="info">{done}</p>}
       {error && <p className="error">{error}</p>}
+    </div>
+  )
+}
+
+const GHOSTS: { label: string; until: () => Date }[] = [
+  { label: '1 h', until: () => new Date(Date.now() + 3600e3) },
+  { label: '3 h', until: () => new Date(Date.now() + 3 * 3600e3) },
+  {
+    label: 'Until tomorrow',
+    until: () => {
+      const d = new Date()
+      d.setDate(d.getDate() + 1)
+      d.setHours(8, 0, 0, 0)
+      return d
+    },
+  },
+]
+
+/** Ghost mode: hide your location for a while; it comes back by itself. */
+function Ghost() {
+  const { me, setMe } = useApp()
+  useTick()
+  const active = !!me.ghost_until && Date.parse(me.ghost_until) > Date.now()
+
+  async function set(until: Date | null) {
+    const ghost_until = until?.toISOString() ?? null
+    setMe({ ...me, ghost_until })
+    await supabase.from('profiles').update({ ghost_until }).eq('id', me.id)
+  }
+
+  if (active)
+    return (
+      <div className="ghost-row on">
+        <span className="grow">
+          👻 Hidden until {new Date(me.ghost_until!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        <button className="btn ghost small" onClick={() => set(null)}>
+          Show me again
+        </button>
+      </div>
+    )
+  return (
+    <div className="ghost-row">
+      <span className="sub">👻 Ghost mode:</span>
+      {GHOSTS.map((g) => (
+        <button key={g.label} className="chip" onClick={() => set(g.until())}>
+          {g.label}
+        </button>
+      ))}
     </div>
   )
 }

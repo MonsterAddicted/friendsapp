@@ -6,6 +6,8 @@ export type Tab = 'feed' | 'map' | 'meetups' | 'group'
 export interface MeetupDraft {
   kind?: MeetupKind
   title?: string
+  /** datetime-local value, e.g. 2026-11-05T19:00 */
+  startsAt?: string
 }
 
 export interface AppState {

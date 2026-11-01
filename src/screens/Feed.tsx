@@ -5,6 +5,8 @@ import { ago } from '../lib/time'
 import { Avatar } from '../components/ui'
 import type { Status } from '../types'
 import { FreeNow } from './FreeNow'
+import { WaveSheet } from './Waves'
+import type { Member } from '../types'
 
 const QUICK = ['💬', '🍕', '🎮', '📚', '💼', '🏃', '🎵', '🚗', '🛋️', '😴', '🎉', '☕']
 
@@ -15,6 +17,7 @@ export function Feed() {
   const [emoji, setEmoji] = useState('💬')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [waveTo, setWaveTo] = useState<Member | null>(null)
   useTick()
 
   useEffect(() => {
@@ -117,7 +120,13 @@ export function Feed() {
         <p className="label">Right now</p>
         <div className="now-row">
           {rightNow.map(({ m, s }) => (
-            <div className={'now-card' + (s && isFresh(s.created_at) ? '' : ' stale')} key={m.id}>
+            <button
+              className={'now-card' + (s && isFresh(s.created_at) ? '' : ' stale')}
+              key={m.id}
+              disabled={m.id === me.id}
+              onClick={() => setWaveTo(m)}
+              aria-label={m.id === me.id ? undefined : `Wave at ${m.display_name}`}
+            >
               <div className="now-top">
                 <Avatar p={m} size={36} />
                 <span className="now-emoji">{s?.emoji ?? '💤'}</span>
@@ -125,7 +134,8 @@ export function Feed() {
               <div className="name small">{m.id === me.id ? 'You' : m.display_name}</div>
               <div className="now-text">{s?.text ?? 'No status yet'}</div>
               {s && <div className="sub tiny">{ago(s.created_at)}</div>}
-            </div>
+              {m.id !== me.id && <div className="wave-hint">👋 Wave</div>}
+            </button>
           ))}
         </div>
       </section>
@@ -162,6 +172,7 @@ export function Feed() {
           )
         })}
       </section>
+      {waveTo && <WaveSheet to={waveTo} onClose={() => setWaveTo(null)} />}
     </>
   )
 }

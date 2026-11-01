@@ -7,6 +7,7 @@ export interface Profile {
   emoji: string
   color: string
   location_mode: LocationMode
+  ghost_until?: string | null
 }
 
 export interface Member extends Profile {
@@ -95,4 +96,32 @@ export interface OnTheWay {
   arrived: boolean
   started_at: string
   updated_at: string
+}
+
+export interface Expense {
+  id: string
+  group_id: string
+  meetup_id: string | null
+  created_by: string
+  paid_by: string
+  amount_cents: number
+  note: string | null
+  is_settlement: boolean
+  created_at: string
+}
+
+export interface ExpenseShare {
+  expense_id: string
+  user_id: string
+  amount_cents: number
+}
+
+export interface Wave {
+  id: string
+  group_id: string
+  from_user: string
+  to_user: string
+  message: string
+  seen: boolean
+  created_at: string
 }

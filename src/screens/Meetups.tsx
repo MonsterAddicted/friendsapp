@@ -6,7 +6,9 @@ import { distanceText, km } from '../lib/geo'
 import { getPosition, locationErrorText } from '../lib/location'
 import { Avatar, Sheet } from '../components/ui'
 import { MiniMap } from '../components/MiniMap'
-import type { Answer, Meetup, MeetupKind, MeetupOption, MeetupResponse, Member, OnTheWay, Vote } from '../types'
+import { BestDay } from './BestDay'
+import { money, SplitBillSheet, useExpenses } from './Bills'
+import type { Answer, Expense, Meetup, MeetupKind, MeetupOption, MeetupResponse, Member, OnTheWay, Vote } from '../types'
 
 export const KINDS: Record<MeetupKind, { emoji: string; label: string; example: string }> = {
   party: { emoji: '🎉', label: 'Party', example: 'Party at mine?' },
@@ -35,6 +37,7 @@ export function Meetups() {
   const { group, members, openNewMeetup } = useApp()
   const [data, setData] = useState<Data | null>(null)
   const timer = useRef<number | undefined>(undefined)
+  const bills = useExpenses()
   useTick()
 
   const load = useCallback(async () => {
@@ -92,6 +95,7 @@ export function Meetups() {
       <button className="btn block" onClick={() => openNewMeetup()}>
         + New meetup
       </button>
+      <BestDay />
 
       {data === null && <p className="muted">Loading…</p>}
       {data?.meetups.length === 0 && (
@@ -109,6 +113,8 @@ export function Meetups() {
           options={data.options.filter((o) => o.meetup_id === m.id)}
           votes={data.votes}
           otw={data.otw.filter((w) => w.meetup_id === m.id)}
+          expenses={bills.expenses.filter((e) => e.meetup_id === m.id && !e.is_settlement)}
+          onBills={bills.reload}
           byId={byId}
           setData={setData}
           reload={reload}
@@ -127,6 +133,8 @@ function MeetupCard({
   byId,
   setData,
   reload,
+  expenses,
+  onBills,
 }: {
   m: Meetup
   answers: MeetupResponse[]
@@ -136,9 +144,12 @@ function MeetupCard({
   byId: Map<string, Member>
   setData: Dispatch<SetStateAction<Data | null>>
   reload: () => void
+  expenses: Expense[]
+  onBills: () => void
 }) {
   const { me } = useApp()
   const [showMap, setShowMap] = useState(false)
+  const [splitting, setSplitting] = useState(false)
   const [error, setError] = useState('')
   const k = KINDS[m.kind]
   const host = byId.get(m.created_by)
@@ -320,6 +331,19 @@ function MeetupCard({
         </div>
       )}
 
+      <div className="bills">
+        {expenses.map((e) => (
+          <div className="sub" key={e.id}>
+            💸 {e.paid_by === me.id ? 'You' : nameOf(e.paid_by)} paid {money(e.amount_cents)}
+            {e.note ? ` for ${e.note}` : ''}
+          </div>
+        ))}
+        <button className="link inline" onClick={() => setSplitting(true)}>
+          💸 Split a bill
+        </button>
+      </div>
+      {splitting && <SplitBillSheet meetupId={m.id} defaultPeople={going.map((a) => a.user_id)} onClose={() => setSplitting(false)} onSaved={onBills} />}
+
       {m.created_by === me.id && (
         <button className="link danger" onClick={cancel}>
           Cancel meetup
@@ -398,7 +422,7 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
   const [title, setTitle] = useState(draft.title ?? '')
   const [timeMode, setTimeMode] = useState<'fixed' | 'vote'>('fixed')
   const [times, setTimes] = useState<string[]>(() => {
-    const d = new Date(Date.now() + 2 * 3600e3)
+    const d = draft.startsAt ? new Date(draft.startsAt) : new Date(Date.now() + 2 * 3600e3)
     d.setMinutes(0, 0, 0)
     const d2 = new Date(d.getTime() + 24 * 3600e3)
     return [toLocalInput(d), toLocalInput(d2)]

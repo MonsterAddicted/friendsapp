@@ -5,6 +5,10 @@ import { Avatar, Sheet } from '../components/ui'
 import { LocationModePicker } from '../components/LocationMode'
 import { ProfileForm } from './ProfileForm'
 import { GroupForms } from './GroupStart'
+import { StatsCard } from './Stats'
+import { BalancesCard } from './Bills'
+import { WaveSheet } from './Waves'
+import type { Member } from '../types'
 
 export function GroupScreen() {
   const { group, groups, selectGroup, members, me, setMe, reloadGroups } = useApp()
@@ -12,6 +16,7 @@ export function GroupScreen() {
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [waveTo, setWaveTo] = useState<Member | null>(null)
 
   async function invite() {
     const text = `Join "${group.name}" on friendsapp with code ${group.invite_code}`
@@ -44,6 +49,7 @@ export function GroupScreen() {
 
   return (
     <>
+      <StatsCard />
       <section className="card invite">
         <p className="label">Invite code</p>
         <div className="code">{group.invite_code}</div>
@@ -66,10 +72,17 @@ export function GroupScreen() {
                 <div className="sub">@{m.username}</div>
               </div>
               {m.role === 'admin' && <span className="tag">Admin</span>}
+              {m.id !== me.id && (
+                <button className="icon-btn" aria-label={`Wave at ${m.display_name}`} onClick={() => setWaveTo(m)}>
+                  👋
+                </button>
+              )}
             </div>
           ))}
         </div>
       </section>
+
+      <BalancesCard />
 
       <section className="stack-s">
         <p className="label">Your groups</p>
@@ -145,6 +158,7 @@ export function GroupScreen() {
           />
         </Sheet>
       )}
+      {waveTo && <WaveSheet to={waveTo} onClose={() => setWaveTo(null)} />}
       {adding && (
         <Sheet title="Add a group" onClose={() => setAdding(false)}>
           <GroupForms

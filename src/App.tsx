@@ -12,6 +12,7 @@ import { Feed } from './screens/Feed'
 import { MapScreen } from './screens/MapScreen'
 import { Meetups, NewMeetup } from './screens/Meetups'
 import { GroupScreen } from './screens/GroupScreen'
+import { WaveInbox } from './screens/Waves'
 import type { Group, Member, Profile } from './types'
 
 export default function App() {
@@ -120,6 +121,7 @@ function SignedIn({ session }: { session: Session }) {
   return (
     <AppContext.Provider value={state}>
       <Shell tab={tab} />
+      <WaveInbox />
       {draft && <NewMeetup draft={draft} onClose={() => setDraft(null)} onCreated={() => goTab('meetups')} />}
     </AppContext.Provider>
   )
