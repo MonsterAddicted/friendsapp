@@ -31,6 +31,8 @@ export interface AppState {
   toggleMute: (id: string) => void
   isAdmin: boolean
   sos: SosState
+  /** Show the first-time tour again. */
+  openTutorial: () => void
 }
 
 export const AppContext = createContext<AppState | null>(null)

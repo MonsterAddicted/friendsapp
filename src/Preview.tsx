@@ -14,6 +14,7 @@ import { GroupScreen } from './screens/GroupScreen'
 import { SettingsScreen } from './screens/Settings'
 import { PersonSheet } from './screens/Waves'
 import { WheelSheet } from './screens/Wheel'
+import { Tutorial } from './screens/Tutorial'
 import type { Group, Member } from './types'
 
 const today = new Date()
@@ -48,6 +49,7 @@ export default function Preview() {
     muted: new Set(),
     toggleMute: () => {},
     isAdmin: true,
+    openTutorial: () => setSheet('tutorial'),
     sos: {
       alerts: sosOn ? [{ id: 's1', group_id: GROUP.id, user_id: 'lea', lat: 48.2, lng: 16.37, created_at: new Date(Date.now() - 120e3).toISOString(), updated_at: new Date().toISOString(), resolved_at: null }] : [],
       mine: undefined,
@@ -108,6 +110,7 @@ export default function Preview() {
         </div>
         {sheet === 'person' && <PersonSheet person={MEMBERS[1]} onClose={() => setSheet(null)} />}
         {sheet === 'wheel' && <WheelSheet onClose={() => setSheet(null)} />}
+        {sheet === 'tutorial' && <Tutorial onDone={() => setSheet(null)} />}
       </OnlineContext.Provider>
     </AppContext.Provider>
   )

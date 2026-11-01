@@ -19,6 +19,7 @@ import { Meetups, NewMeetup } from './screens/Meetups'
 import { GroupScreen } from './screens/GroupScreen'
 import { SettingsScreen } from './screens/Settings'
 import { PersonSheet, WaveInbox } from './screens/Waves'
+import { Tutorial, tutorialSeen } from './screens/Tutorial'
 import type { Group, Member, Profile } from './types'
 
 // Invite links look like https://…/?join=ABC123. Remember the code until the person is signed in.
@@ -226,7 +227,7 @@ function SignedInShell({
   draft,
   closeDraft,
 }: {
-  base: Omit<AppState, 'sos'>
+  base: Omit<AppState, 'sos' | 'openTutorial'>
   tab: Tab
   person: string | null
   closePerson: () => void
@@ -235,7 +236,8 @@ function SignedInShell({
 }) {
   const online = useOnline(base.group.id, base.me.id, privacyOn(base.me.privacy, 'online'))
   const sos = useSos(base.group.id, base.me.id)
-  const state: AppState = { ...base, sos }
+  const [tour, setTour] = useState(() => !tutorialSeen(base.me.id))
+  const state: AppState = { ...base, sos, openTutorial: () => setTour(true) }
   const p = person ? (base.members.find((m) => m.id === person) ?? (person === base.me.id ? base.me : null)) : null
 
   return (
@@ -245,6 +247,14 @@ function SignedInShell({
         <WaveInbox />
         {p && <PersonSheet person={p} onClose={closePerson} />}
         {draft && <NewMeetup draft={draft} onClose={closeDraft} onCreated={() => base.goTab('meetups')} />}
+        {tour && (
+          <Tutorial
+            onDone={() => {
+              setTour(false)
+              base.goTab('feed')
+            }}
+          />
+        )}
       </OnlineContext.Provider>
     </AppContext.Provider>
   )

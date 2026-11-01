@@ -9,6 +9,7 @@ import type { Status } from '../types'
 import { FreeNow } from './FreeNow'
 import { CountdownsCard } from './Countdowns'
 import { Memories } from './Memories'
+import { GroupIntro } from './Tutorial'
 
 const EMOJIS = ['💬', '🍕', '🎮', '📚', '💼', '🏃', '🎵', '🚗', '🛋️', '😴', '🎉', '☕']
 
@@ -129,6 +130,7 @@ export function Feed() {
   return (
     <>
       <BusyBanner />
+      <GroupIntro posted={(items ?? []).some((s) => s.user_id === me.id)} />
       {settings.showMemories && <Memories />}
       {settings.showFree && <FreeNow />}
       <Composer onPosted={added} />

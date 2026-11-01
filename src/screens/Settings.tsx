@@ -8,6 +8,7 @@ import { LocationModePicker } from '../components/LocationMode'
 import { ProfileForm } from './ProfileForm'
 import { NotificationsCard } from './Notifications'
 import { birthdayText } from './Waves'
+import { resetGroupIntro } from './Tutorial'
 
 const SHOW: { key: keyof DeviceSettings; label: string; help: string }[] = [
   { key: 'showFree', label: '"I\'m free" card', help: 'Top of the feed' },
@@ -25,7 +26,7 @@ const PRIVACY: { key: PrivacyKey; label: string; help: string }[] = [
 ]
 
 export function SettingsScreen() {
-  const { me, setMe } = useApp()
+  const { me, setMe, group, goTab, openTutorial } = useApp()
   const s = useSettings()
   const [editing, setEditing] = useState(false)
 
@@ -108,6 +109,23 @@ export function SettingsScreen() {
           {PRIVACY.map((x) => (
             <Toggle key={x.key} id={'privacy-' + x.key} label={t(x.label)} help={t(x.help)} checked={privacyOn(me.privacy, x.key)} onChange={(v) => setPrivacy(x.key, v)} />
           ))}
+        </div>
+      </Section>
+
+      <Section title={t('Help')}>
+        <div className="card">
+          <button className="btn ghost block" onClick={openTutorial}>
+            🧭 {t('Show the tour again')}
+          </button>
+          <button
+            className="btn ghost block"
+            onClick={() => {
+              resetGroupIntro(me.id, group.id)
+              goTab('feed')
+            }}
+          >
+            ✅ {t('Show the "Getting started" list again')}
+          </button>
         </div>
       </Section>
 

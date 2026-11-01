@@ -498,3 +498,45 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .wheel-pointer { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 1.5rem; color: var(--text); text-shadow: 0 2px 2px rgba(0, 0, 0, .2); }
 .wheel-edit summary { cursor: pointer; font-weight: 800; color: var(--muted); font-size: .88rem; padding: 4px 0; }
 .wheel-edit[open] summary { margin-bottom: 8px; }
+
+/* ---------- first-time tour ---------- */
+.tour {
+  position: fixed; inset: 0; z-index: 1050; display: flex; flex-direction: column; gap: 16px;
+  max-width: 560px; margin: 0 auto; background: var(--bg);
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 18px) max(20px, env(safe-area-inset-left, 0px));
+  animation: fade .2s;
+}
+.tour::before { content: ''; position: absolute; inset: 0 0 auto; height: 46%; background: radial-gradient(120% 90% at 50% 0%, var(--accent-soft), transparent 70%); pointer-events: none; z-index: -1; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; min-height: 24px; }
+.tour-body { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; overflow-y: auto; padding: 8px 0; animation: slide-in .28s cubic-bezier(.2, .8, .3, 1); }
+@keyframes slide-in { from { opacity: 0; transform: translateX(24px); } }
+.tour-art { width: 128px; height: 128px; border-radius: 40px; background: var(--card); box-shadow: var(--shadow-up); display: grid; place-items: center; margin: 12px 0 10px; }
+.tour-emoji { font-size: 64px; line-height: 1; }
+.tour-title { margin: 0; font-size: 1.65rem; font-weight: 900; letter-spacing: -.01em; text-wrap: balance; }
+.tour-kicker { margin: -4px 0 0; font-weight: 800; color: var(--accent-text); }
+.tour-text { margin: 0; color: var(--muted); line-height: 1.5; max-width: 34ch; }
+.tour-points { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 380px; text-align: left; }
+.tour-points li { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: .92rem; box-shadow: var(--shadow); }
+.tour-point-emoji { font-size: 1.3rem; flex: none; }
+.tour-push { width: 100%; max-width: 380px; margin-top: 6px; }
+.tour-tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 6px 2px; box-shadow: var(--shadow); transition: opacity .2s; }
+.tour-tabs.idle { opacity: .55; }
+.tour-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .64rem; font-weight: 800; color: var(--faint); border-radius: 10px; padding: 4px 0; transition: color .2s, background .2s, transform .2s; min-width: 0; }
+.tour-tab svg { width: 20px; height: 20px; }
+.tour-tab.on { color: var(--accent); background: var(--accent-soft); transform: translateY(-2px); }
+.tour-dots { display: flex; justify-content: center; gap: 6px; }
+.tour-dot { width: 7px; height: 7px; border-radius: 99px; border: 0; padding: 0; background: var(--line-deep); transition: width .2s, background .2s; }
+.tour-dot.on { width: 22px; background: var(--accent); }
+.tour-nav { display: flex; gap: 10px; }
+.tour-nav .btn { padding: 14px 18px; }
+
+/* ---------- getting started checklist ---------- */
+.intro { gap: 10px; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+.intro-bar { height: 8px; border-radius: 99px; background: var(--input); overflow: hidden; }
+.intro-bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+.intro-step { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; border-radius: 12px; padding: 8px 4px; }
+.intro-step:hover:not(:disabled) { background: var(--input); }
+.intro-step:disabled { cursor: default; }
+.intro-step.done .name { text-decoration: line-through; color: var(--muted); }
+.intro-step .check { pointer-events: none; }
+.intro-emoji { font-size: 1.25rem; flex: none; }
