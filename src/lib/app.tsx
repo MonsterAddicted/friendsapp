@@ -59,7 +59,7 @@ export function niceError(e: { message?: string; code?: string } | null | undefi
   if (!e) return t('Something went wrong. Try again.')
   if (e.code === '23505') return t('That username is already taken.')
   if (e.code === '23514') return t('Please check what you typed.')
-  if (e.code === 'PGRST205' || e.code === 'PGRST204' || e.code === '42P01') return t('This needs the latest database update. Ask the app owner to run it.')
+  if (e.code === 'PGRST205' || e.code === 'PGRST204' || e.code === '42P01' || e.code === 'PGRST202' || e.code === '42703') return t('This needs the latest database update. Ask the app owner to run it.')
   if (e.message === 'No group with that code') return t('No group with that code')
   if (e.message === 'Only admins can do that') return t('Only admins can do that')
   return e.message || t('Something went wrong. Try again.')
