@@ -1,9 +1,9 @@
-// Cloudflare Pages Function: POST /api/push
+// POST /api/push (called from worker/index.ts)
 // Supabase calls this (with a shared secret) to send web push notifications.
 // It only encrypts + delivers; who gets what is decided in the database.
 import { buildPushPayload, type PushSubscription } from '@block65/webcrypto-web-push'
 
-interface Env {
+export interface Env {
   PUSH_SECRET: string
   VAPID_PUBLIC_KEY: string
   VAPID_PRIVATE_KEY: string
@@ -18,7 +18,7 @@ interface Body {
   tag?: string
 }
 
-export const onRequestPost = async ({ request, env }: { request: Request; env: Env }) => {
+export async function handlePush(request: Request, env: Env): Promise<Response> {
   if (!env.PUSH_SECRET || request.headers.get('x-push-secret') !== env.PUSH_SECRET) {
     return new Response('Unauthorized', { status: 401 })
   }

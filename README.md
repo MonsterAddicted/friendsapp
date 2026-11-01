@@ -18,5 +18,7 @@ Website first (Cloudflare Pages), then Android/iOS with Capacitor — same code,
 2. Authentication → Sign In / Providers → Email: turn **off** "Confirm email" (so friends can sign up instantly).
 3. Authentication → URL Configuration: add the Cloudflare URL (and `http://localhost:5173`) to Redirect URLs.
 
-## Deploy (Cloudflare Pages)
-Build command `npm run build`, output folder `dist`, env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+## Deploy (Cloudflare Worker)
+Connected to GitHub: every push to `main` builds (`npm run build`) and deploys (`npx wrangler deploy`).
+Config in `wrangler.jsonc` (static site from `dist/` + `/api/push` in `worker/`).
+Public build values are in `.env.production`. Secrets `VAPID_PRIVATE_KEY` and `PUSH_SECRET` are set in the Cloudflare dashboard.
