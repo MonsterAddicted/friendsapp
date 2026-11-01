@@ -5,13 +5,14 @@ import { ago } from '../lib/time'
 import { Avatar } from '../components/ui'
 import type { Status } from '../types'
 import { FreeNow } from './FreeNow'
+import { CountdownsCard } from './Countdowns'
 import { WaveSheet } from './Waves'
 import type { Member } from '../types'
 
 const QUICK = ['💬', '🍕', '🎮', '📚', '💼', '🏃', '🎵', '🚗', '🛋️', '😴', '🎉', '☕']
 
 export function Feed() {
-  const { group, me, members } = useApp()
+  const { group, me, members, goTab } = useApp()
   const [items, setItems] = useState<Status[] | null>(null)
   const [text, setText] = useState('')
   const [emoji, setEmoji] = useState('💬')
@@ -91,6 +92,7 @@ export function Feed() {
   return (
     <>
       <FreeNow />
+      <CountdownsCard onSetRegion={() => goTab('group')} />
       <form className="card composer" onSubmit={post}>
         <div className="row">
           <Avatar p={me} size={40} />

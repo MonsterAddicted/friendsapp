@@ -6,3 +6,7 @@ dist/
 android/app/build/
 ios/App/Pods/
 .wrangler/
+
+# local secrets (push keys)
+.secrets/
+!.env.production

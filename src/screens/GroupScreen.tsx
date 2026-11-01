@@ -8,6 +8,8 @@ import { GroupForms } from './GroupStart'
 import { StatsCard } from './Stats'
 import { BalancesCard } from './Bills'
 import { WaveSheet } from './Waves'
+import { NotificationsCard } from './Notifications'
+import { RegionCard } from './Countdowns'
 import type { Member } from '../types'
 
 export function GroupScreen() {
@@ -121,6 +123,9 @@ export function GroupScreen() {
           <LocationModePicker />
         </div>
       </section>
+
+      <NotificationsCard />
+      <RegionCard />
 
       <section className="stack-s bottom-links">
         {confirmLeave ? (

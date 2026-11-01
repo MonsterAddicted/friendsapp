@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/app'
 import { KINDS } from './Meetups'
 import type { MeetupKind } from '../types'
+import { punctuality, type Checkin } from './MeetupExtras'
 
 interface Past {
   id: string
@@ -27,6 +28,8 @@ interface Result {
   top: { name: string; n: number } | null
   kind: MeetupKind | null
   spot: string | null
+  punctual: { name: string; pct: number } | null
+  late: { name: string; pct: number } | null
 }
 
 /**
@@ -56,6 +59,13 @@ export function StatsCard() {
       const goers = new Map<string, string[]>()
       for (const a of ins as { meetup_id: string; user_id: string }[]) goers.set(a.meetup_id, [...(goers.get(a.meetup_id) ?? []), a.user_id])
       const hangouts = past.filter((m) => (goers.get(m.id)?.length ?? 0) >= 2)
+      const checkins = past.length
+        ? (((await supabase.from('meetup_checkins').select('*').in('meetup_id', past.map((m) => m.id))).data as Checkin[]) ?? [])
+        : []
+      const scores = [...punctuality(new Map(past.map((m) => [m.id, m.starts_at])), checkins)]
+        .filter(([, v]) => v.total >= 2)
+        .map(([id, v]) => ({ id, pct: Math.round((v.onTime / v.total) * 100) }))
+        .sort((a, b) => b.pct - a.pct)
 
       // Streak
       const weeks = new Set(hangouts.map((m) => weekKey(new Date(m.starts_at))))
@@ -93,6 +103,8 @@ export function StatsCard() {
           top: topUser ? { name: nameOf(topUser[0]), n: topUser[1] } : null,
           kind: topKind?.[0] ?? null,
           spot: topSpot?.[0] ?? null,
+          punctual: scores.length ? { name: nameOf(scores[0].id), pct: scores[0].pct } : null,
+          late: scores.length > 1 && scores[scores.length - 1].pct < 100 ? { name: nameOf(scores[scores.length - 1].id), pct: scores[scores.length - 1].pct } : null,
         })
     })()
     return () => {
@@ -135,6 +147,14 @@ export function StatsCard() {
           <div className="tile">
             <b>{r.spot ?? '–'}</b>
             <span>top spot</span>
+          </div>
+          <div className="tile">
+            <b>{r.punctual ? `⏱️ ${r.punctual.name}` : '–'}</b>
+            <span>{r.punctual ? `most punctual (${r.punctual.pct}% on time)` : 'most punctual'}</span>
+          </div>
+          <div className="tile">
+            <b>{r.late ? `🐢 ${r.late.name}` : '–'}</b>
+            <span>{r.late ? `usually late (${r.late.pct}% on time)` : 'usually late'}</span>
           </div>
         </div>
       </div>

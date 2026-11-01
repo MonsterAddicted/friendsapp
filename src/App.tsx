@@ -40,7 +40,12 @@ function SignedIn({ session }: { session: Session }) {
   const [groups, setGroups] = useState<Group[] | undefined>(undefined)
   const [groupId, setGroupId] = useState<string | null>(() => store.get('groupId'))
   const [members, setMembers] = useState<Member[]>([])
-  const [tab, setTab] = useState<Tab>(() => (store.get('tab') as Tab) || 'feed')
+  const [tab, setTab] = useState<Tab>(() => {
+    // Notifications open links like /?tab=meetups
+    const fromLink = new URLSearchParams(window.location.search).get('tab') as Tab | null
+    if (fromLink) window.history.replaceState(null, '', '/')
+    return fromLink ?? ((store.get('tab') as Tab) || 'feed')
+  })
   const [draft, setDraft] = useState<MeetupDraft | null>(null)
   const goTab = useCallback((t: Tab) => {
     setTab(t)
@@ -67,6 +72,13 @@ function SignedIn({ session }: { session: Session }) {
   }, [uid])
 
   const hasProfile = !!me
+
+  // Remember the timezone, so reminders and the daily nudge come at the right local time
+  useEffect(() => {
+    if (!me) return
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz && me.timezone !== tz) supabase.from('profiles').update({ timezone: tz }).eq('id', me.id).then(() => {})
+  }, [me])
   useEffect(() => {
     if (hasProfile) reloadGroups()
   }, [hasProfile, reloadGroups])

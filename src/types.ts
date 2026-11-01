@@ -8,6 +8,8 @@ export interface Profile {
   color: string
   location_mode: LocationMode
   ghost_until?: string | null
+  timezone?: string | null
+  notify?: Record<string, boolean>
 }
 
 export interface Member extends Profile {
@@ -19,6 +21,8 @@ export interface Group {
   name: string
   invite_code: string
   created_by: string
+  country?: string | null
+  subdivision?: string | null
 }
 
 export interface Status {

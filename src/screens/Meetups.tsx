@@ -8,6 +8,7 @@ import { Avatar, Sheet } from '../components/ui'
 import { MiniMap } from '../components/MiniMap'
 import { BestDay } from './BestDay'
 import { money, SplitBillSheet, useExpenses } from './Bills'
+import { BringList, LateTracker, type Checkin, type Item } from './MeetupExtras'
 import type { Answer, Expense, Meetup, MeetupKind, MeetupOption, MeetupResponse, Member, OnTheWay, Vote } from '../types'
 
 export const KINDS: Record<MeetupKind, { emoji: string; label: string; example: string }> = {
@@ -31,6 +32,8 @@ interface Data {
   options: MeetupOption[]
   votes: Vote[]
   otw: OnTheWay[]
+  items: Item[]
+  checkins: Checkin[]
 }
 
 export function Meetups() {
@@ -51,11 +54,13 @@ export function Meetups() {
       .order('starts_at', { ascending: true, nullsFirst: true })
     const meetups = (ms as Meetup[]) ?? []
     const ids = meetups.map((m) => m.id)
-    if (!ids.length) return setData({ meetups, answers: [], options: [], votes: [], otw: [] })
-    const [r, o, w] = await Promise.all([
+    if (!ids.length) return setData({ meetups, answers: [], options: [], votes: [], otw: [], items: [], checkins: [] })
+    const [r, o, w, it, ci] = await Promise.all([
       supabase.from('meetup_responses').select('*').in('meetup_id', ids),
       supabase.from('meetup_options').select('*').in('meetup_id', ids).order('position'),
       supabase.from('on_the_way').select('*').in('meetup_id', ids),
+      supabase.from('meetup_items').select('*').in('meetup_id', ids).order('created_at'),
+      supabase.from('meetup_checkins').select('*').in('meetup_id', ids),
     ])
     const options = (o.data as MeetupOption[]) ?? []
     const v = options.length ? await supabase.from('meetup_votes').select('*').in('option_id', options.map((x) => x.id)) : { data: [] }
@@ -65,6 +70,8 @@ export function Meetups() {
       options,
       votes: (v.data as Vote[]) ?? [],
       otw: (w.data as OnTheWay[]) ?? [],
+      items: (it.data as Item[]) ?? [],
+      checkins: (ci.data as Checkin[]) ?? [],
     })
   }, [group.id])
 
@@ -78,7 +85,7 @@ export function Meetups() {
     setData(null)
     load()
     const ch = supabase.channel('meetups-' + group.id)
-    for (const table of ['meetups', 'meetup_responses', 'meetup_options', 'meetup_votes', 'on_the_way']) {
+    for (const table of ['meetups', 'meetup_responses', 'meetup_options', 'meetup_votes', 'on_the_way', 'meetup_items', 'meetup_checkins']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, reload)
     }
     ch.subscribe()
@@ -115,6 +122,8 @@ export function Meetups() {
           otw={data.otw.filter((w) => w.meetup_id === m.id)}
           expenses={bills.expenses.filter((e) => e.meetup_id === m.id && !e.is_settlement)}
           onBills={bills.reload}
+          items={data.items.filter((i) => i.meetup_id === m.id)}
+          checkins={data.checkins.filter((c) => c.meetup_id === m.id)}
           byId={byId}
           setData={setData}
           reload={reload}
@@ -135,6 +144,8 @@ function MeetupCard({
   reload,
   expenses,
   onBills,
+  items,
+  checkins,
 }: {
   m: Meetup
   answers: MeetupResponse[]
@@ -146,6 +157,8 @@ function MeetupCard({
   reload: () => void
   expenses: Expense[]
   onBills: () => void
+  items: Item[]
+  checkins: Checkin[]
 }) {
   const { me } = useApp()
   const [showMap, setShowMap] = useState(false)
@@ -330,6 +343,9 @@ function MeetupCard({
           {error && <p className="error">{error}</p>}
         </div>
       )}
+
+      <LateTracker m={m} answers={answers} checkins={checkins} byId={byId} reload={reload} />
+      <BringList m={m} items={items} byId={byId} reload={reload} />
 
       <div className="bills">
         {expenses.map((e) => (
