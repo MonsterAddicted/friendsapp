@@ -20,5 +20,5 @@ Website first (Cloudflare Pages), then Android/iOS with Capacitor — same code,
 
 ## Deploy (Cloudflare Worker)
 Connected to GitHub: every push to `main` builds (`npm run build`) and deploys (`npx wrangler deploy`).
-Config in `wrangler.jsonc` (static site from `dist/` + `/api/push` in `worker/`).
+Hosted on Cloudflare Pages (`friendsapp-2je.pages.dev`): static site from `dist/` + `functions/api/push.ts`. (`wrangler.worker.jsonc` = ready-made config if we ever move to a Worker.)
 Public build values are in `.env.production`. Secrets `VAPID_PRIVATE_KEY` and `PUSH_SECRET` are set in the Cloudflare dashboard.

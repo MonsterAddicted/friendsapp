@@ -3,11 +3,15 @@
 // It only encrypts + delivers; who gets what is decided in the database.
 import { buildPushPayload, type PushSubscription } from '@block65/webcrypto-web-push'
 
+// Public values (safe to have in code). Secrets come from Cloudflare settings.
+const PUBLIC_KEY = 'BLd6EPGXL_5INTkyK8O9VrED5-NUoyL_2tNQuPT5cBiRR5cNt2UV0AtUkgXb3yGqykZh2Sc7u_pTFIzuBpjF7eA'
+const SUBJECT = 'mailto:manueldawood05@gmail.com'
+
 export interface Env {
   PUSH_SECRET: string
-  VAPID_PUBLIC_KEY: string
+  VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY: string
-  VAPID_SUBJECT: string
+  VAPID_SUBJECT?: string
 }
 
 interface Body {
@@ -23,7 +27,7 @@ export async function handlePush(request: Request, env: Env): Promise<Response> 
     return new Response('Unauthorized', { status: 401 })
   }
   const msg = (await request.json()) as Body
-  const vapid = { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY }
+  const vapid = { subject: env.VAPID_SUBJECT || SUBJECT, publicKey: env.VAPID_PUBLIC_KEY || PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY }
   const data = JSON.stringify({ title: msg.title, body: msg.body, url: msg.url ?? '/', tag: msg.tag })
   const gone: string[] = []
   let sent = 0
