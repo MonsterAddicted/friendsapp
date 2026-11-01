@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/app'
 import { toLocalInput } from '../lib/time'
-import { Avatar } from '../components/ui'
+import { Avatar, Section } from '../components/ui'
+import { LOCALE, t, tn } from '../lib/i18n'
 
 interface FreeDay {
   user_id: string
@@ -61,20 +62,16 @@ export function BestDay() {
   }
 
   return (
-    <section className="card">
-      <div className="row">
-        <div className="grow">
-          <p className="label">Best day this week</p>
-          <p className="sub">Tap the evenings you're free.</p>
-        </div>
-      </div>
+    <Section title={t('Best day this week')}>
+    <div className="card">
+      <p className="sub">{t("Tap the evenings you're free.")}</p>
       <div className="week">
         {days.map((d, i) => {
           const ps = people(d.key)
           const mine = ps.some((p) => p.id === me.id)
           return (
             <button key={d.key} className={'day' + (mine ? ' on' : '') + (d.key === best ? ' best' : '')} onClick={() => toggle(d.key)} aria-pressed={mine}>
-              <span className="day-name">{i === 0 ? 'Today' : d.date.toLocaleDateString([], { weekday: 'short' })}</span>
+              <span className="day-name">{i === 0 ? t('Today') : d.date.toLocaleDateString(LOCALE, { weekday: 'short' })}</span>
               <span className="day-num">{d.date.getDate()}</span>
               <span className="day-count">{ps.length || ''}</span>
               {d.key === best && <span className="day-flame">🔥</span>}
@@ -86,7 +83,7 @@ export function BestDay() {
         <div className="match">
           <div className="grow">
             <div className="name">
-              {days.find((d) => d.key === best)!.date.toLocaleDateString([], { weekday: 'long' })} works for {bestN} people
+              {tn(bestN, '{day} works for {n} person', '{day} works for {n} people', { day: days.find((d) => d.key === best)!.date.toLocaleDateString(LOCALE, { weekday: 'long' }) })}
             </div>
             <div className="faces">
               {people(best).map((p) => (
@@ -95,10 +92,11 @@ export function BestDay() {
             </div>
           </div>
           <button className="btn small" onClick={() => openNewMeetup({ startsAt: `${best}T19:00` })}>
-            Plan it
+            {t('Plan it')}
           </button>
         </div>
       )}
-    </section>
+    </div>
+    </Section>
   )
 }

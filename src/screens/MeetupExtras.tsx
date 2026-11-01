@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError, useApp } from '../lib/app'
 import { Avatar } from '../components/ui'
+import { t } from '../lib/i18n'
 import type { Meetup, MeetupResponse, Member } from '../types'
 
 export interface Item {
@@ -20,6 +21,8 @@ export interface Checkin {
 
 /** Late = more than 5 minutes after the start time. */
 export const LATE_GRACE_MIN = 5
+/** 15+ minutes late = you owe the group a snack. */
+export const SNACK_MIN = 15
 
 const minutesLate = (start: string, at: number) => Math.round((at - Date.parse(start)) / 60000)
 
@@ -54,14 +57,14 @@ export function BringList({ m, items, byId, reload }: { m: Meetup; items: Item[]
   if (!open)
     return (
       <button className="link inline" onClick={() => setOpen(true)}>
-        🧺 Who brings what?
+        🧺 {t('Who brings what?')}
       </button>
     )
 
   const missing = items.filter((i) => !i.claimed_by).length
   return (
     <div className="bring">
-      <p className="label">Who brings what {items.length > 0 && <span className="sub tiny">· {missing ? `${missing} still needed` : 'all covered ✓'}</span>}</p>
+      <p className="label">{t('Who brings what')} {items.length > 0 && <span className="sub tiny">· {missing ? t('{n} still needed', { n: missing }) : t('all covered ✓')}</span>}</p>
       {items.map((i) => {
         const who = i.claimed_by ? byId.get(i.claimed_by) : undefined
         const mine = i.claimed_by === me.id
@@ -72,10 +75,10 @@ export function BringList({ m, items, byId, reload }: { m: Meetup; items: Item[]
             </button>
             <span className="grow">
               <span className="name small">{i.label}</span>
-              <span className="sub tiny block">{who ? (mine ? 'You bring this (tap to undo)' : `${who.display_name} brings it`) : 'Tap + to bring it'}</span>
+              <span className="sub tiny block">{who ? (mine ? t('You bring this (tap to undo)') : t('{name} brings it', { name: who.display_name })) : t('Tap + to bring it')}</span>
             </span>
             {(i.created_by === me.id || m.created_by === me.id) && (
-              <button className="icon-btn faint" aria-label="Remove item" onClick={() => remove(i)}>
+              <button className="icon-btn faint" aria-label={t('Remove item')} onClick={() => remove(i)}>
                 ✕
               </button>
             )}
@@ -83,9 +86,9 @@ export function BringList({ m, items, byId, reload }: { m: Meetup; items: Item[]
         )
       })}
       <form className="row" onSubmit={add}>
-        <input id={'item-' + m.id} className="input grow small-input" maxLength={40} placeholder="Add: drinks, chips, controller…" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <input id={'item-' + m.id} className="input grow small-input" maxLength={40} placeholder={t('Add: drinks, chips, controller…')} value={label} onChange={(e) => setLabel(e.target.value)} />
         <button className="btn small" disabled={!label.trim()}>
-          Add
+          {t('Add')}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
@@ -114,48 +117,56 @@ export function LateTracker({ m, answers, checkins, byId, reload }: { m: Meetup;
 
   return (
     <div className="late">
-      <p className="label">{now < start ? 'Starting soon' : "Who's here"}</p>
+      <p className="label">{now < start ? t('Starting soon') : t("Who's here")}</p>
       {coming.map((id) => {
         const p = byId.get(id)
         const c = here.get(id)
         let status: string
         let cls = ''
+        let late = 0
         if (c) {
-          const late = minutesLate(m.starts_at!, Date.parse(c.arrived_at))
-          status = late > LATE_GRACE_MIN ? `Arrived ${late} min late` : 'On time ✓'
+          late = minutesLate(m.starts_at!, Date.parse(c.arrived_at))
+          status = late > LATE_GRACE_MIN ? t('Arrived {n} min late', { n: late }) : t('On time ✓')
           cls = late > LATE_GRACE_MIN ? 'warn' : 'ok'
         } else if (now > start + LATE_GRACE_MIN * 60000) {
-          status = `Late · ${minutesLate(m.starts_at!, now)} min`
+          late = minutesLate(m.starts_at!, now)
+          status = t('Late · {n} min', { n: late })
           cls = 'bad'
         } else {
-          status = 'Not here yet'
+          status = t('Not here yet')
         }
+        const snack = late >= SNACK_MIN
         return (
           <div className="row" key={id}>
             <Avatar p={p} size={28} />
-            <span className="grow name small">{id === me.id ? 'You' : p?.display_name ?? '?'}</span>
+            <span className="grow">
+              <span className="name small block">{id === me.id ? t('You') : p?.display_name ?? '?'}</span>
+              {snack && <span className="snack">🍫 {id === me.id ? t('You owe the group a snack') : t('Owes the group a snack')}</span>}
+            </span>
             <span className={'late-status ' + cls}>{status}</span>
           </div>
         )
       })}
       {iAmIn && !here.has(me.id) && (
         <button className="btn small" onClick={checkIn}>
-          📍 I'm here
+          📍 {t("I'm here")}
         </button>
       )}
     </div>
   )
 }
 
-/** On-time share per person, from all check-ins of the group's meetups. */
+/** On-time share per person (and snacks owed), from all check-ins of the group's meetups. */
 export function punctuality(starts: Map<string, string>, checkins: Checkin[]) {
-  const score = new Map<string, { onTime: number; total: number }>()
+  const score = new Map<string, { onTime: number; total: number; snacks: number }>()
   for (const c of checkins) {
     const s = starts.get(c.meetup_id)
     if (!s) continue
-    const v = score.get(c.user_id) ?? { onTime: 0, total: 0 }
+    const v = score.get(c.user_id) ?? { onTime: 0, total: 0, snacks: 0 }
     v.total++
-    if (minutesLate(s, Date.parse(c.arrived_at)) <= LATE_GRACE_MIN) v.onTime++
+    const late = minutesLate(s, Date.parse(c.arrived_at))
+    if (late <= LATE_GRACE_MIN) v.onTime++
+    if (late >= SNACK_MIN) v.snacks++
     score.set(c.user_id, v)
   }
   return score

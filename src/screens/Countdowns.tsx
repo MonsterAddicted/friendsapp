@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError, useApp } from '../lib/app'
 import { toLocalInput } from '../lib/time'
-import { Sheet } from '../components/ui'
+import { Section, Sheet } from '../components/ui'
+import { LANG, t } from '../lib/i18n'
+
+const API_LANG = LANG === 'de' ? 'DE' : 'EN'
 
 // Holidays come from OpenHolidays (free, no key): https://openholidaysapi.org
 const API = 'https://openholidaysapi.org'
@@ -21,7 +24,7 @@ interface Item {
   emoji: string
   day: string
   mine?: string
-  kind: 'own' | 'holiday' | 'school'
+  kind: 'own' | 'holiday' | 'school' | 'birthday'
 }
 
 interface ApiHoliday {
@@ -40,6 +43,16 @@ function daysUntil(day: string): number {
   return Math.round((target.getTime() - now.getTime()) / 86400e3)
 }
 
+/** Next time this birthday comes round, as YYYY-MM-DD. */
+function nextBirthday(b: string): string {
+  const [, m, d] = b.split('-').map(Number)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  let y = now.getFullYear()
+  if (new Date(y, m - 1, d) < now) y++
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
 const holidayCache = new Map<string, Item[]>()
 
 async function fetchHolidays(country: string, subdivision: string | null): Promise<Item[]> {
@@ -49,7 +62,7 @@ async function fetchHolidays(country: string, subdivision: string | null): Promi
   const to = toLocalInput(toD).slice(0, 10)
   const key = `${country}|${subdivision}|${from}`
   if (holidayCache.has(key)) return holidayCache.get(key)!
-  const q = `countryIsoCode=${country}&languageIsoCode=EN&validFrom=${from}&validTo=${to}${subdivision ? `&subdivisionCode=${subdivision}` : ''}`
+  const q = `countryIsoCode=${country}&languageIsoCode=${API_LANG}&validFrom=${from}&validTo=${to}${subdivision ? `&subdivisionCode=${subdivision}` : ''}`
   const get = async (path: string): Promise<ApiHoliday[]> => {
     try {
       const r = await fetch(`${API}/${path}?${q}`)
@@ -59,7 +72,7 @@ async function fetchHolidays(country: string, subdivision: string | null): Promi
     }
   }
   const [pub, school] = await Promise.all([get('PublicHolidays'), get('SchoolHolidays')])
-  const name = (h: ApiHoliday) => h.name.find((n) => n.language === 'EN')?.text ?? h.name[0]?.text ?? 'Holiday'
+  const name = (h: ApiHoliday) => h.name.find((n) => n.language === API_LANG)?.text ?? h.name[0]?.text ?? t('Holiday')
   const items: Item[] = [
     ...pub.map((h) => ({ key: 'p' + h.id, title: name(h), emoji: holidayEmoji(name(h)), day: h.startDate, kind: 'holiday' as const })),
     ...school.map((h) => ({ key: 's' + h.id, title: name(h), emoji: '🏖️', day: h.startDate, kind: 'school' as const })),
@@ -70,16 +83,16 @@ async function fetchHolidays(country: string, subdivision: string | null): Promi
 
 function holidayEmoji(n: string): string {
   const s = n.toLowerCase()
-  if (s.includes('christmas')) return '🎄'
-  if (s.includes('new year')) return '🎆'
-  if (s.includes('easter')) return '🐣'
-  if (s.includes('labour') || s.includes('may day')) return '🛠️'
+  if (s.includes('christmas') || s.includes('weihnacht')) return '🎄'
+  if (s.includes('new year') || s.includes('neujahr')) return '🎆'
+  if (s.includes('easter') || s.includes('oster')) return '🐣'
+  if (s.includes('labour') || s.includes('may day') || s.includes('arbeit')) return '🛠️'
   return '🎉'
 }
 
 /** "Coming up" card on the feed: the group's own countdowns + holidays + school holidays for the group's region. */
 export function CountdownsCard({ onSetRegion }: { onSetRegion: () => void }) {
-  const { group, me } = useApp()
+  const { group, me, members } = useApp()
   const [own, setOwn] = useState<Countdown[]>([])
   const [holidays, setHolidays] = useState<Item[]>([])
   const [adding, setAdding] = useState(false)
@@ -115,25 +128,31 @@ export function CountdownsCard({ onSetRegion }: { onSetRegion: () => void }) {
     await supabase.from('countdowns').delete().eq('id', id)
   }
 
-  const items: Item[] = [...own.map((c) => ({ key: c.id, title: c.title, emoji: c.emoji, day: c.day, mine: c.created_by === me.id ? c.id : undefined, kind: 'own' as const })), ...holidays]
+  const birthdays: Item[] = members
+    .filter((m) => m.birthday)
+    .map((m) => ({ key: 'b' + m.id, title: m.id === me.id ? t('Your birthday') : t("{name}'s birthday", { name: m.display_name }), emoji: '🎂', day: nextBirthday(m.birthday!), kind: 'birthday' as const }))
+    .filter((b) => daysUntil(b.day) <= 60)
+  const items: Item[] = [...own.map((c) => ({ key: c.id, title: c.title, emoji: c.emoji, day: c.day, mine: c.created_by === me.id ? c.id : undefined, kind: 'own' as const })), ...birthdays, ...holidays]
     .filter((i) => daysUntil(i.day) >= 0)
     .sort((a, b) => a.day.localeCompare(b.day) || (a.kind === 'own' ? -1 : 1))
   const shown = showAll ? items : items.slice(0, 4)
 
   return (
-    <section className="card">
-      <div className="row">
-        <p className="label grow">Coming up</p>
+    <Section
+      title={t('Coming up')}
+      action={
         <button className="link inline" onClick={() => setAdding(true)}>
-          + Countdown
+          + {t('Countdown')}
         </button>
-      </div>
+      }
+    >
+      <div className="card">
       {!group.country && (
         <button className="hint" onClick={onSetRegion}>
-          📍 Set your group's region to see holidays and school holidays here.
+          📍 {t("Set your group's region to see holidays and school holidays here.")}
         </button>
       )}
-      {items.length === 0 && group.country && <p className="sub">Nothing coming up. Add a countdown for your next big thing.</p>}
+      {items.length === 0 && group.country && <p className="sub">{t('Nothing coming up. Add a countdown for your next big thing.')}</p>}
       <div className="countdowns">
         {shown.map((i) => {
           const n = daysUntil(i.day)
@@ -142,17 +161,17 @@ export function CountdownsCard({ onSetRegion }: { onSetRegion: () => void }) {
               <span className="cd-emoji">{i.emoji}</span>
               <span className="grow">
                 <span className="name small block">{i.title}</span>
-                <span className="sub tiny">{i.kind === 'school' ? 'School holidays' : i.kind === 'holiday' ? 'Public holiday' : 'Countdown'}</span>
+                <span className="sub tiny">{t(i.kind === 'school' ? 'School holidays' : i.kind === 'holiday' ? 'Public holiday' : i.kind === 'birthday' ? 'Birthday' : 'Countdown')}</span>
               </span>
               <span className="cd-days">
-                {n === 0 ? 'Today!' : n === 1 ? 'Tomorrow' : (
+                {n === 0 ? t('Today!') : n === 1 ? t('Tomorrow') : (
                   <>
-                    <b>{n}</b> days
+                    <b>{n}</b> {t('days')}
                   </>
                 )}
               </span>
               {i.mine && (
-                <button className="icon-btn faint" aria-label="Delete countdown" onClick={() => remove(i.mine!)}>
+                <button className="icon-btn faint" aria-label={t('Delete countdown')} onClick={() => remove(i.mine!)}>
                   ✕
                 </button>
               )}
@@ -162,11 +181,12 @@ export function CountdownsCard({ onSetRegion }: { onSetRegion: () => void }) {
       </div>
       {items.length > 4 && (
         <button className="link inline" onClick={() => setShowAll((s) => !s)}>
-          {showAll ? 'Show less' : `Show all ${items.length}`}
+          {showAll ? t('Show less') : t('Show all {n}', { n: items.length })}
         </button>
       )}
+      </div>
       {adding && <AddCountdown onClose={() => setAdding(false)} onSaved={load} />}
-    </section>
+    </Section>
   )
 }
 
@@ -191,14 +211,14 @@ function AddCountdown({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   }
 
   return (
-    <Sheet title="New countdown" onClose={onClose}>
+    <Sheet title={t('New countdown')} onClose={onClose}>
       <form className="stack" onSubmit={save}>
         <label className="field">
-          What's happening?
-          <input id="cd-title" className="input" maxLength={40} placeholder="e.g. Festival, Lea's birthday, Holidays" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          {t("What's happening?")}
+          <input id="cd-title" className="input" maxLength={40} placeholder={t('e.g. Festival, holidays, exams')} value={title} onChange={(e) => setTitle(e.target.value)} required />
         </label>
         <label className="field">
-          When?
+          {t('When?')}
           <input id="cd-day" className="input" type="date" min={todayKey()} value={day} onChange={(e) => setDay(e.target.value)} required />
         </label>
         <div className="chips wrap">
@@ -210,7 +230,7 @@ function AddCountdown({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         </div>
         {error && <p className="error">{error}</p>}
         <button className="btn block" disabled={busy || !title.trim() || !day}>
-          Start countdown {emoji}
+          {t('Start countdown')} {emoji}
         </button>
       </form>
     </Sheet>
@@ -228,7 +248,7 @@ interface Subdivision {
   name: { language: string; text: string }[]
   children?: Subdivision[]
 }
-const en = (n: { language: string; text: string }[]) => n.find((x) => x.language === 'EN')?.text ?? n[0]?.text ?? ''
+const en = (n: { language: string; text: string }[]) => n.find((x) => x.language === API_LANG)?.text ?? n.find((x) => x.language === 'EN')?.text ?? n[0]?.text ?? ''
 
 export function RegionCard() {
   const { group, me, members, reloadGroups } = useApp()
@@ -241,7 +261,7 @@ export function RegionCard() {
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
-    fetch(`${API}/Countries?languageIsoCode=EN`)
+    fetch(`${API}/Countries?languageIsoCode=${API_LANG}`)
       .then((r) => r.json())
       .then((c: Country[]) => setCountries(c.sort((a, b) => en(a.name).localeCompare(en(b.name)))))
       .catch(() => {})
@@ -249,7 +269,7 @@ export function RegionCard() {
 
   useEffect(() => {
     if (!country) return setSubs([])
-    fetch(`${API}/Subdivisions?countryIsoCode=${country}&languageIsoCode=EN`)
+    fetch(`${API}/Subdivisions?countryIsoCode=${country}&languageIsoCode=${API_LANG}`)
       .then((r) => r.json())
       .then((s: Subdivision[]) => setSubs(s.sort((a, b) => en(a.name).localeCompare(en(b.name)))))
       .catch(() => setSubs([]))
@@ -261,7 +281,7 @@ export function RegionCard() {
     const { error } = await supabase.from('groups').update({ country: c || null, subdivision: s || null }).eq('id', group.id)
     await reloadGroups()
     setBusy(false)
-    setMsg(error ? niceError(error) : 'Saved ✓')
+    setMsg(error ? niceError(error) : t('Saved ✓'))
   }
 
   /** Find country + state from where you are right now (OpenStreetMap lookup). */
@@ -280,23 +300,22 @@ export function RegionCard() {
       await save(c, s)
     } catch {
       setBusy(false)
-      setMsg('Could not find your region. Pick it from the list instead.')
+      setMsg(t('Could not find your region. Pick it from the list instead.'))
     }
   }
 
   const label = [en(countries.find((c) => c.isoCode === group.country)?.name ?? []), en(subs.find((s) => s.code === group.subdivision)?.name ?? [])].filter(Boolean).join(' · ')
 
   return (
-    <section className="stack-s" id="region">
-      <p className="label">Group region</p>
-      <div className="card">
-        <p className="sub">Used for the holiday and school holiday countdowns on the feed.</p>
+    <div className="stack-s" id="region">
+        <p className="name small">{t('Region')}</p>
+        <p className="sub">{t('Used for the holiday and school holiday countdowns on the feed.')}</p>
         {!isAdmin ? (
-          <p className="name">{label || group.country || 'Not set yet. Ask an admin to set it.'}</p>
+          <p className="name">{label || group.country || t('Not set yet. Ask an admin to set it.')}</p>
         ) : (
           <>
             <select id="region-country" className="input" value={country} onChange={(e) => { setCountry(e.target.value); setSub('') }}>
-              <option value="">Choose a country…</option>
+              <option value="">{t('Choose a country…')}</option>
               {countries.map((c) => (
                 <option key={c.isoCode} value={c.isoCode}>
                   {en(c.name)}
@@ -305,7 +324,7 @@ export function RegionCard() {
             </select>
             {subs.length > 0 && (
               <select id="region-sub" className="input" value={sub} onChange={(e) => setSub(e.target.value)}>
-                <option value="">Whole country</option>
+                <option value="">{t('Whole country')}</option>
                 {subs.map((s) => (
                   <option key={s.code} value={s.code}>
                     {en(s.name)}
@@ -315,16 +334,15 @@ export function RegionCard() {
             )}
             <div className="row">
               <button className="btn small grow" disabled={busy || !country} onClick={() => save(country, sub)}>
-                Save region
+                {t('Save region')}
               </button>
               <button className="btn ghost small" disabled={busy} onClick={detect}>
-                📍 Detect
+                📍 {t('Detect')}
               </button>
             </div>
           </>
         )}
-        {msg && <p className={msg.startsWith('Saved') ? 'info' : 'error'}>{msg}</p>}
-      </div>
-    </section>
+        {msg && <p className={msg === t('Saved ✓') ? 'info' : 'error'}>{msg}</p>}
+    </div>
   )
 }

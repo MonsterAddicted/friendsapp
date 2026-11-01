@@ -86,7 +86,7 @@ h1 { font-size: 1.6rem; font-weight: 900; margin: 0; text-wrap: balance; }
 <script>
 // Edit these values to update the page.
 const UPDATED = "Updated 1 Nov 2026";
-const NOW = "Building the 3 features only friendsapp has: the \"I'm free\" button, time & place vote, and On my way. (No photos, so nothing needs moderating.)";
+const NOW = "Round 4 is built and live: all 26 features, a cleaner look, a Settings tab and German. Your turn: paste the database update (on your clipboard) into Supabase → SQL Editor → Run. Then test on your phone with a friend.";
 const LIVE_URL = "https://friendsapp-2je.pages.dev";
 const SECTIONS = [
   ["Setup", [
@@ -137,6 +137,38 @@ const SECTIONS = [
     ["Countdowns for your region", "Holidays and school holidays for the group's region, plus your own countdowns.", "done"],
     ["Nearby alert", "\"Lea is 200 m from you\", only when both share live.", "done"],
     ["Late tracker", "Who's here, who's late and by how much, plus a punctuality score.", "done"],
+  ]],
+  ["Round 4: feed & status (26 Yes from 50 questions)", [
+    ["Run database update 4 + 5", "One paste in Supabase (on your clipboard). Turns on everything below plus push notifications.", "you"],
+    ["Quick statuses + 24 h statuses", "One-tap presets like 📚 🎮 😴 🍕. Statuses disappear after 24 h.", "done"],
+    ["Busy mode + active dot", "\"Busy until 18:00\" mutes waves and notifications. A green dot shows who has the app open.", "done"],
+    ["Seen by + song status", "See who saw your post. Add a Spotify song to your status.", "done"],
+  ]],
+  ["Round 4: map & safety", [
+    ["Battery on map", "Friends' battery % next to their pin (Android; iPhone browsers don't share it).", "done"],
+    ["SOS button", "Sends your live location and an urgent push to the whole group.", "done"],
+    ["Mute & remove", "Mute someone's posts. Admins can remove members.", "done"],
+    ["Our map", "A pin for every place the group has met up, plus favourite spots.", "done"],
+  ]],
+  ["Round 4: meetups", [
+    ["Calendar + directions + weather", "Add to phone calendar, open the route in Maps, see the forecast on the card.", "done"],
+    ["Favourite spots", "The group's usual places, one tap when making a meetup.", "done"],
+    ["Rate the meetup + late penalty", "1–5 ⭐ afterwards (best one in Wrapped). 15+ min late = owes a snack 🍫.", "done"],
+    ["Decision wheel", "Spin to pick food, a place or who pays. Everyone sees the same result.", "done"],
+  ]],
+  ["Round 4: group & profile", [
+    ["Bucket list + memories", "Things to do together, ticked off. \"1 year ago today…\" from past meetups.", "done"],
+    ["Birthdays + bio", "Birthday countdown, push and 🎂. Short bio and favourites on your profile.", "done"],
+    ["Admin tools + invite link/QR", "Rename the group, new code, pass admin. Join by link or QR scan.", "done"],
+  ]],
+  ["Round 4: store & language", [
+    ["Delete account", "Required by Apple and Google.", "done"],
+    ["Sign in with Apple", "Button is built; switch it on once there's an Apple Developer account.", "done"],
+    ["German version", "Whole app + notifications. Follows the phone language, or pick it in Settings.", "done"],
+  ]],
+  ["Round 4: cleaner look + settings", [
+    ["New look", "Calmer cards, softer buttons, frosted top and tab bar, real dark mode, group switcher on the title.", "done"],
+    ["Settings tab", "Theme, language, show/hide cards, vibration, animations, privacy (online dot, seen by, battery).", "done"],
   ]],
   ["Go live", [
     ["Website on Cloudflare Pages", "Live at friendsapp-2je.pages.dev. Auto-deploys from GitHub on every push.", "done"],

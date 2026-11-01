@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError, useApp, useTick, type MeetupDraft } from '../lib/app'
-import { ago, toLocalInput, when } from '../lib/time'
+import { ago, day, toLocalInput, when } from '../lib/time'
+import { t, tn } from '../lib/i18n'
+import { privacyOn, useSettings } from '../lib/settings'
+import { addToCalendar, directionsUrl, weatherAt, type Weather } from '../lib/meetupTools'
 import { distanceText, km } from '../lib/geo'
 import { getPosition, locationErrorText } from '../lib/location'
-import { Avatar, Sheet } from '../components/ui'
+import { Avatar, Section, Sheet } from '../components/ui'
 import { MiniMap } from '../components/MiniMap'
 import { BestDay } from './BestDay'
 import { money, SplitBillSheet, useExpenses } from './Bills'
 import { BringList, LateTracker, type Checkin, type Item } from './MeetupExtras'
-import type { Answer, Expense, Meetup, MeetupKind, MeetupOption, MeetupResponse, Member, OnTheWay, Vote } from '../types'
+import { saveSpot, useSpots } from './Spots'
+import { LatestSpin, WheelSheet } from './Wheel'
+import type { Answer, Expense, Meetup, MeetupKind, MeetupOption, MeetupResponse, Member, OnTheWay, Rating, Spot, Vote } from '../types'
 
 export const KINDS: Record<MeetupKind, { emoji: string; label: string; example: string }> = {
   party: { emoji: '🎉', label: 'Party', example: 'Party at mine?' },
@@ -20,7 +25,7 @@ export const KINDS: Record<MeetupKind, { emoji: string; label: string; example: 
   other: { emoji: '✨', label: 'Other', example: 'Anyone up for…' },
 }
 
-const ANSWERS: { id: Answer; label: string }[] = [
+export const ANSWERS: { id: Answer; label: string }[] = [
   { id: 'in', label: "I'm in" },
   { id: 'maybe', label: 'Maybe' },
   { id: 'out', label: "Can't" },
@@ -34,17 +39,28 @@ interface Data {
   otw: OnTheWay[]
   items: Item[]
   checkins: Checkin[]
+  ratings: Rating[]
+  views: { meetup_id: string; user_id: string }[]
 }
 
+/** Meetups stay "current" until 4 h after the start; then they move to "Recent" for 3 days (to rate them). */
+const CURRENT_MS = 4 * 3600e3
+const RECENT_MS = 3 * 86400e3
+const isCurrent = (m: Meetup) => !m.starts_at || Date.parse(m.starts_at) > Date.now() - CURRENT_MS
+
 export function Meetups() {
-  const { group, members, openNewMeetup } = useApp()
+  const { group, members, me, openNewMeetup } = useApp()
+  const settings = useSettings()
+  const { spots } = useSpots()
   const [data, setData] = useState<Data | null>(null)
+  const [wheel, setWheel] = useState(false)
+  const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const bills = useExpenses()
   useTick()
 
   const load = useCallback(async () => {
-    const since = new Date(Date.now() - 6 * 3600e3).toISOString()
+    const since = new Date(Date.now() - RECENT_MS).toISOString()
     const { data: ms } = await supabase
       .from('meetups')
       .select('*')
@@ -54,13 +70,15 @@ export function Meetups() {
       .order('starts_at', { ascending: true, nullsFirst: true })
     const meetups = (ms as Meetup[]) ?? []
     const ids = meetups.map((m) => m.id)
-    if (!ids.length) return setData({ meetups, answers: [], options: [], votes: [], otw: [], items: [], checkins: [] })
-    const [r, o, w, it, ci] = await Promise.all([
+    if (!ids.length) return setData({ meetups, answers: [], options: [], votes: [], otw: [], items: [], checkins: [], ratings: [], views: [] })
+    const [r, o, w, it, ci, ra, vw] = await Promise.all([
       supabase.from('meetup_responses').select('*').in('meetup_id', ids),
       supabase.from('meetup_options').select('*').in('meetup_id', ids).order('position'),
       supabase.from('on_the_way').select('*').in('meetup_id', ids),
       supabase.from('meetup_items').select('*').in('meetup_id', ids).order('created_at'),
       supabase.from('meetup_checkins').select('*').in('meetup_id', ids),
+      supabase.from('meetup_ratings').select('*').in('meetup_id', ids),
+      supabase.from('meetup_views').select('meetup_id, user_id').in('meetup_id', ids),
     ])
     const options = (o.data as MeetupOption[]) ?? []
     const v = options.length ? await supabase.from('meetup_votes').select('*').in('option_id', options.map((x) => x.id)) : { data: [] }
@@ -72,6 +90,8 @@ export function Meetups() {
       otw: (w.data as OnTheWay[]) ?? [],
       items: (it.data as Item[]) ?? [],
       checkins: (ci.data as Checkin[]) ?? [],
+      ratings: (ra.data as Rating[]) ?? [],
+      views: (vw.data as Data['views']) ?? [],
     })
   }, [group.id])
 
@@ -85,7 +105,7 @@ export function Meetups() {
     setData(null)
     load()
     const ch = supabase.channel('meetups-' + group.id)
-    for (const table of ['meetups', 'meetup_responses', 'meetup_options', 'meetup_votes', 'on_the_way', 'meetup_items', 'meetup_checkins']) {
+    for (const table of ['meetups', 'meetup_responses', 'meetup_options', 'meetup_votes', 'on_the_way', 'meetup_items', 'meetup_checkins', 'meetup_ratings', 'meetup_views']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, reload)
     }
     ch.subscribe()
@@ -97,22 +117,59 @@ export function Meetups() {
 
   const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
 
+  // My last shared spot: used for the weather when a meetup has no pin
+  useEffect(() => {
+    supabase
+      .from('locations')
+      .select('lat, lng')
+      .eq('user_id', me.id)
+      .maybeSingle()
+      .then(({ data }) => data && setMyLoc(data as { lat: number; lng: number }))
+  }, [me.id])
+
+  // "Seen by": mark the meetups I can see
+  const shareSeen = privacyOn(me.privacy, 'seen')
+  const seenKey = data?.meetups.map((m) => m.id).join(',') ?? ''
+  useEffect(() => {
+    if (!data || !shareSeen) return
+    const rows = data.meetups.filter((m) => m.created_by !== me.id && !data.views.some((v) => v.meetup_id === m.id && v.user_id === me.id)).map((m) => ({ meetup_id: m.id, user_id: me.id }))
+    if (rows.length) supabase.from('meetup_views').upsert(rows, { ignoreDuplicates: true }).then(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seenKey, shareSeen])
+
+  const current = data?.meetups.filter(isCurrent) ?? []
+  const recent = (data?.meetups.filter((m) => !isCurrent(m)) ?? []).reverse()
+
+  /** Where to check the weather: the pin, a favourite spot with the same name, or my last spot. */
+  const coordsFor = (m: Meetup) => {
+    if (m.lat != null && m.lng != null) return { lat: m.lat, lng: m.lng }
+    const spot = spots.find((s: Spot) => s.lat != null && m.place && s.name.toLowerCase() === m.place.trim().toLowerCase())
+    if (spot) return { lat: spot.lat!, lng: spot.lng! }
+    return myLoc
+  }
+
   return (
     <>
-      <button className="btn block" onClick={() => openNewMeetup()}>
-        + New meetup
-      </button>
-      <BestDay />
+      <div className="row full">
+        <button className="btn grow" onClick={() => openNewMeetup()}>
+          + {t('New meetup')}
+        </button>
+        <button className="btn ghost" onClick={() => setWheel(true)}>
+          🎡 {t('Decide')}
+        </button>
+      </div>
+      <LatestSpin />
+      {settings.showBestDay && <BestDay />}
 
-      {data === null && <p className="muted">Loading…</p>}
-      {data?.meetups.length === 0 && (
+      {data === null && <p className="muted">{t('Loading…')}</p>}
+      {data && current.length === 0 && (
         <div className="empty">
           <div className="empty-icon">📅</div>
-          No plans yet. Start one: pizza, party, football, anything.
+          {t('No plans yet. Start one: pizza, party, football, anything.')}
         </div>
       )}
 
-      {data?.meetups.map((m) => (
+      {data && current.map((m) => (
         <MeetupCard
           key={m.id}
           m={m}
@@ -124,12 +181,132 @@ export function Meetups() {
           onBills={bills.reload}
           items={data.items.filter((i) => i.meetup_id === m.id)}
           checkins={data.checkins.filter((c) => c.meetup_id === m.id)}
+          ratings={data.ratings.filter((x) => x.meetup_id === m.id)}
+          views={data.views.filter((v) => v.meetup_id === m.id && v.user_id !== m.created_by)}
+          coords={settings.showWeather ? coordsFor(m) : null}
           byId={byId}
           setData={setData}
           reload={reload}
         />
       ))}
+
+      {data && recent.length > 0 && (
+        <Section title={t('Recent')}>
+          {recent.map((m) => (
+            <PastCard
+              key={m.id}
+              m={m}
+              going={data.answers.filter((a) => a.meetup_id === m.id && a.answer === 'in').map((a) => a.user_id)}
+              ratings={data.ratings.filter((x) => x.meetup_id === m.id)}
+              byId={byId}
+              setData={setData}
+            />
+          ))}
+        </Section>
+      )}
+      {wheel && <WheelSheet onClose={() => setWheel(false)} />}
     </>
+  )
+}
+
+/* ---------------- Ratings ---------------- */
+
+function Stars({ value, onPick, size = '' }: { value: number; onPick?: (n: number) => void; size?: string }) {
+  return (
+    <span className={'stars ' + size} role={onPick ? 'radiogroup' : undefined} aria-label={t('{n} of 5 stars', { n: value })}>
+      {[1, 2, 3, 4, 5].map((n) =>
+        onPick ? (
+          <button key={n} className={'star' + (n <= value ? ' on' : '')} onClick={() => onPick(n)} role="radio" aria-checked={n === value} aria-label={tn(n, '{n} star', '{n} stars')}>
+            ★
+          </button>
+        ) : (
+          <span key={n} className={'star' + (n <= Math.round(value) ? ' on' : '')} aria-hidden>
+            ★
+          </span>
+        ),
+      )}
+    </span>
+  )
+}
+
+async function rate(meetupId: string, userId: string, stars: number, setData: Dispatch<SetStateAction<Data | null>>) {
+  setData((d) => d && { ...d, ratings: [...d.ratings.filter((x) => !(x.meetup_id === meetupId && x.user_id === userId)), { meetup_id: meetupId, user_id: userId, stars }] })
+  await supabase.from('meetup_ratings').upsert({ meetup_id: meetupId, user_id: userId, stars })
+}
+
+const average = (rs: Rating[]) => (rs.length ? rs.reduce((a, b) => a + b.stars, 0) / rs.length : 0)
+
+function RateRow({ m, ratings, setData }: { m: Meetup; ratings: Rating[]; setData: Dispatch<SetStateAction<Data | null>> }) {
+  const { me } = useApp()
+  const mine = ratings.find((x) => x.user_id === me.id)?.stars ?? 0
+  return (
+    <div className="rate-row">
+      <span className="grow">
+        <span className="name small block">{mine ? t('Your rating') : t('How was it?')}</span>
+        {ratings.length > 0 && (
+          <span className="sub tiny">
+            {t('Group: {avg} ★ from {n}', { avg: average(ratings).toFixed(1), n: ratings.length })}
+          </span>
+        )}
+      </span>
+      <Stars value={mine} onPick={(n) => rate(m.id, me.id, n, setData)} size="big" />
+    </div>
+  )
+}
+
+/** A meetup that already happened: rate it if you were there. */
+function PastCard({ m, going, ratings, byId, setData }: { m: Meetup; going: string[]; ratings: Rating[]; byId: Map<string, Member>; setData: Dispatch<SetStateAction<Data | null>> }) {
+  const { me } = useApp()
+  const wasThere = going.includes(me.id)
+  return (
+    <article className="card past">
+      <div className="row">
+        <div className="kind-badge small">{KINDS[m.kind].emoji}</div>
+        <div className="grow">
+          <div className="name">{m.title}</div>
+          <div className="sub">
+            {m.starts_at && day(m.starts_at)}
+            {m.place ? ' · ' + m.place : ''}
+          </div>
+        </div>
+        <div className="faces">
+          {going.slice(0, 5).map((id) => (
+            <Avatar key={id} p={byId.get(id)} size={24} />
+          ))}
+        </div>
+      </div>
+      {wasThere ? (
+        <RateRow m={m} ratings={ratings} setData={setData} />
+      ) : (
+        ratings.length > 0 && (
+          <div className="row">
+            <Stars value={average(ratings)} />
+            <span className="sub tiny">{t('{avg} from {n}', { avg: average(ratings).toFixed(1), n: ratings.length })}</span>
+          </div>
+        )
+      )}
+    </article>
+  )
+}
+
+/* ---------------- Weather chip ---------------- */
+
+function WeatherChip({ at, coords }: { at: string; coords: { lat: number; lng: number } }) {
+  const [w, setW] = useState<Weather | null>(null)
+  useEffect(() => {
+    let alive = true
+    weatherAt(coords.lat, coords.lng, at).then((x) => alive && setW(x))
+    return () => {
+      alive = false
+    }
+  }, [at, coords.lat, coords.lng])
+  if (!w) return null
+  const wet = w.rain >= 50
+  return (
+    <span className={'weather' + (wet ? ' wet' : '')} title={w.text}>
+      {w.emoji} {w.temp}°{w.rain >= 20 ? ` · 💧${w.rain}%` : ''}
+      {wet && <span className="sub tiny"> · {t('bring a jacket')}</span>}
+    </span>
   )
 }
 
@@ -146,6 +323,9 @@ function MeetupCard({
   onBills,
   items,
   checkins,
+  ratings,
+  views,
+  coords,
 }: {
   m: Meetup
   answers: MeetupResponse[]
@@ -159,9 +339,13 @@ function MeetupCard({
   onBills: () => void
   items: Item[]
   checkins: Checkin[]
+  ratings: Rating[]
+  views: { meetup_id: string; user_id: string }[]
+  coords: { lat: number; lng: number } | null
 }) {
   const { me } = useApp()
   const [showMap, setShowMap] = useState(false)
+  const [showSeen, setShowSeen] = useState(false)
   const [splitting, setSplitting] = useState(false)
   const [error, setError] = useState('')
   const k = KINDS[m.kind]
@@ -169,7 +353,7 @@ function MeetupCard({
   const mine = answers.find((a) => a.user_id === me.id)?.answer
   const going = answers.filter((a) => a.answer === 'in')
   const count = (x: Answer) => answers.filter((a) => a.answer === x).length
-  const nameOf = (id: string) => (id === me.id ? 'you' : byId.get(id)?.display_name ?? '?')
+  const nameOf = (id: string) => (id === me.id ? t('you') : byId.get(id)?.display_name ?? '?')
 
   const timeOpts = options.filter((o) => o.kind === 'time').sort((a, b) => (a.starts_at ?? '').localeCompare(b.starts_at ?? ''))
   const placeOpts = options.filter((o) => o.kind === 'place')
@@ -237,8 +421,10 @@ function MeetupCard({
     await supabase.from('meetups').update({ cancelled: true }).eq('id', m.id)
   }
 
-  const timeText = voting && timeOpts.length ? 'Time: vote below' : m.starts_at ? when(m.starts_at) : 'Time open'
-  const placeText = voting && placeOpts.length ? 'Place: vote below' : m.place
+  const timeText = voting && timeOpts.length ? t('Time: vote below') : m.starts_at ? when(m.starts_at) : t('Time open')
+  const placeText = voting && placeOpts.length ? t('Place: vote below') : m.place
+  const route = !voting || !placeOpts.length ? directionsUrl(m) : null
+  const started = !!m.starts_at && Date.now() > Date.parse(m.starts_at) + 30 * 60000
 
   return (
     <article className="card meetup">
@@ -247,7 +433,7 @@ function MeetupCard({
         <div className="grow">
           <h3 className="meetup-title">{m.title}</h3>
           <div className="sub">
-            {k.label} · by {host ? nameOf(host.id) : 'someone'}
+            {t(k.label)} · {t('by {name}', { name: host ? nameOf(host.id) : t('someone') })}
           </div>
         </div>
       </div>
@@ -256,21 +442,34 @@ function MeetupCard({
         {placeText && <span>📍 {placeText}</span>}
       </div>
       {m.details && <p className="details">{m.details}</p>}
+      {(m.starts_at || route) && (
+        <div className="meetup-tools">
+          {m.starts_at && coords && !voting && <WeatherChip at={m.starts_at} coords={coords} />}
+          {m.starts_at && (!voting || !timeOpts.length) && (
+            <button className="tool" onClick={() => addToCalendar(m)}>
+              📅 {t('Calendar')}
+            </button>
+          )}
+          {route && (
+            <a className="tool" href={route} target="_blank" rel="noopener noreferrer">
+              🧭 {t('Directions')}
+            </a>
+          )}
+        </div>
+      )}
 
       {voting && (
         <div className="poll">
           {timeOpts.length > 0 && (
-            <PollList title="When?" opts={timeOpts} votes={votes} lead={timeLeader} me={me.id} byId={byId} onVote={vote} labelOf={(o) => when(o.starts_at!)} />
+            <PollList title={t('When?')} opts={timeOpts} votes={votes} lead={timeLeader} me={me.id} byId={byId} onVote={vote} labelOf={(o) => when(o.starts_at!)} />
           )}
           {placeOpts.length > 0 && (
-            <PollList title="Where?" opts={placeOpts} votes={votes} lead={placeLeader} me={me.id} byId={byId} onVote={vote} labelOf={(o) => o.label ?? ''} />
+            <PollList title={t('Where?')} opts={placeOpts} votes={votes} lead={placeLeader} me={me.id} byId={byId} onVote={vote} labelOf={(o) => o.label ?? ''} />
           )}
-          <p className="sub">
-            {voters.size} of {byId.size} voted. You can pick more than one.
-          </p>
+          <p className="sub">{t('{n} of {total} voted. You can pick more than one.', { n: voters.size, total: byId.size })}</p>
           {m.created_by === me.id && (
             <button className="btn small" onClick={lockIn}>
-              Lock it in: {[timeLeader && when(timeLeader.starts_at!), placeLeader?.label].filter(Boolean).join(' · ')}
+              {t('Lock it in:')} {[timeLeader && when(timeLeader.starts_at!), placeLeader?.label].filter(Boolean).join(' · ')}
             </button>
           )}
         </div>
@@ -279,7 +478,7 @@ function MeetupCard({
       <div className="answers">
         {ANSWERS.map((a) => (
           <button key={a.id} className={`answer ${a.id}` + (mine === a.id ? ' on' : '')} onClick={() => respond(a.id)}>
-            {a.label} <b>{count(a.id) || ''}</b>
+            {t(a.label)} <b>{count(a.id) || ''}</b>
           </button>
         ))}
       </div>
@@ -291,21 +490,21 @@ function MeetupCard({
               <Avatar key={a.user_id} p={byId.get(a.user_id)} size={28} />
             ))}
           </div>
-          <span className="sub">{going.map((a) => nameOf(a.user_id)).join(', ')} going</span>
+          <span className="sub">{t('{names} going', { names: going.map((a) => nameOf(a.user_id)).join(', ') })}</span>
         </div>
       )}
 
       {(otw.length > 0 || mine === 'in') && (
         <div className="otw">
-          <p className="label">On the way</p>
+          <p className="label">{t('On the way')}</p>
           {otw.map((w) => {
             const p = byId.get(w.user_id)
-            const status = w.arrived ? 'Arrived ✓' : goal ? distanceText(km(w, goal)) : `Sharing live · ${ago(w.updated_at)}`
+            const status = w.arrived ? t('Arrived ✓') : goal ? distanceText(km(w, goal)) : t('Sharing live · {ago}', { ago: ago(w.updated_at) })
             return (
               <div className="row" key={w.user_id}>
                 <Avatar p={p} size={32} />
                 <div className="grow">
-                  <div className="name small">{w.user_id === me.id ? 'You' : p?.display_name}</div>
+                  <div className="name small">{w.user_id === me.id ? t('You') : p?.display_name}</div>
                   <div className={'sub' + (w.arrived ? ' ok' : '')}>{status}</div>
                 </div>
               </div>
@@ -313,20 +512,20 @@ function MeetupCard({
           })}
           {mine === 'in' && !myOtw && (
             <button className="btn ghost small" onClick={startOtw}>
-              🚶 I'm on my way
+              🚶 {t("I'm on my way")}
             </button>
           )}
           {myOtw && !myOtw.arrived && (
             <p className="sub">
-              Your location is shared with this meetup until you arrive (max 3 h).{' '}
+              {t('Your location is shared with this meetup until you arrive (max 3 h).')}{' '}
               <button className="link inline" onClick={stopOtw}>
-                Stop
+                {t('Stop')}
               </button>
             </p>
           )}
           {(otw.length > 0 || goal) && (
             <button className="link inline" onClick={() => setShowMap((s) => !s)}>
-              {showMap ? 'Hide map' : 'Show map'}
+              {showMap ? t('Hide map') : t('Show map')}
             </button>
           )}
           {showMap && (
@@ -336,7 +535,7 @@ function MeetupCard({
                 .filter((w) => !w.arrived)
                 .map((w) => {
                   const p = byId.get(w.user_id)
-                  return { id: w.user_id, lat: w.lat, lng: w.lng, emoji: p?.emoji ?? '🙂', color: p?.color ?? '#999', name: w.user_id === me.id ? 'You' : p?.display_name ?? '?' }
+                  return { id: w.user_id, lat: w.lat, lng: w.lng, emoji: p?.emoji ?? '🙂', color: p?.color ?? '#999', name: w.user_id === me.id ? t('You') : p?.display_name ?? '?' }
                 })}
             />
           )}
@@ -345,26 +544,35 @@ function MeetupCard({
       )}
 
       <LateTracker m={m} answers={answers} checkins={checkins} byId={byId} reload={reload} />
+      {started && mine === 'in' && <RateRow m={m} ratings={ratings} setData={setData} />}
       <BringList m={m} items={items} byId={byId} reload={reload} />
 
       <div className="bills">
         {expenses.map((e) => (
           <div className="sub" key={e.id}>
-            💸 {e.paid_by === me.id ? 'You' : nameOf(e.paid_by)} paid {money(e.amount_cents)}
-            {e.note ? ` for ${e.note}` : ''}
+            💸 {t('{name} paid {amount}', { name: e.paid_by === me.id ? t('You') : nameOf(e.paid_by), amount: money(e.amount_cents) })}
+            {e.note ? ' · ' + e.note : ''}
           </div>
         ))}
         <button className="link inline" onClick={() => setSplitting(true)}>
-          💸 Split a bill
+          💸 {t('Split a bill')}
         </button>
       </div>
       {splitting && <SplitBillSheet meetupId={m.id} defaultPeople={going.map((a) => a.user_id)} onClose={() => setSplitting(false)} onSaved={onBills} />}
 
       {m.created_by === me.id && (
-        <button className="link danger" onClick={cancel}>
-          Cancel meetup
-        </button>
+        <div className="card-foot">
+          {privacyOn(me.privacy, 'seen') && (
+            <button className="link inline" onClick={() => setShowSeen((x) => !x)}>
+              👀 {views.length ? tn(views.length, 'Seen by {n}', 'Seen by {n}') : t('Not seen yet')}
+            </button>
+          )}
+          <button className="link danger inline" onClick={cancel}>
+            {t('Cancel meetup')}
+          </button>
+        </div>
       )}
+      {showSeen && views.length > 0 && <p className="sub tiny">{views.map((v) => nameOf(v.user_id)).join(', ')}</p>}
     </article>
   )
 }
@@ -415,7 +623,7 @@ function PollList({
             <span className="poll-fill" style={{ width: `${(vs.length / max) * 100}%` }} />
             <span className="poll-check">{mineVoted ? '✓' : ''}</span>
             <span className="grow poll-label">
-              {labelOf(o)} {isLead && <span className="tag">Leading</span>}
+              {labelOf(o)} {isLead && <span className="tag">{t('Leading')}</span>}
             </span>
             <span className="faces">
               {vs.slice(0, 4).map((v) => (
@@ -434,6 +642,8 @@ function PollList({
 
 export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; onClose: () => void; onCreated: () => void }) {
   const { group, me } = useApp()
+  const { spots } = useSpots()
+  const [saveAsSpot, setSaveAsSpot] = useState(false)
   const [kind, setKind] = useState<MeetupKind>(draft.kind ?? 'eat')
   const [title, setTitle] = useState(draft.title ?? '')
   const [timeMode, setTimeMode] = useState<'fixed' | 'vote'>('fixed')
@@ -444,7 +654,7 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
     return [toLocalInput(d), toLocalInput(d2)]
   })
   const [placeMode, setPlaceMode] = useState<'fixed' | 'vote'>('fixed')
-  const [places, setPlaces] = useState<string[]>(['', ''])
+  const [places, setPlaces] = useState<string[]>([draft.place ?? '', ''])
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null)
   const [pinning, setPinning] = useState(false)
   const [details, setDetails] = useState('')
@@ -465,8 +675,8 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
     e.preventDefault()
     const timeOpts = times.filter(Boolean)
     const placeOpts = places.map((p) => p.trim()).filter(Boolean)
-    if (timeMode === 'vote' && timeOpts.length < 2) return setError('Add at least 2 times to vote on.')
-    if (placeMode === 'vote' && placeOpts.length < 2) return setError('Add at least 2 places to vote on.')
+    if (timeMode === 'vote' && timeOpts.length < 2) return setError(t('Add at least 2 times to vote on.'))
+    if (placeMode === 'vote' && placeOpts.length < 2) return setError(t('Add at least 2 places to vote on.'))
     setBusy(true)
     setError('')
     const { data, error } = await supabase
@@ -475,7 +685,7 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
         group_id: group.id,
         created_by: me.id,
         kind,
-        title: title.trim() || KINDS[kind].example,
+        title: title.trim() || t(KINDS[kind].example),
         place: placeMode === 'fixed' ? placeOpts[0] || null : null,
         lat: pin?.lat ?? null,
         lng: pin?.lng ?? null,
@@ -490,11 +700,12 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
     }
     const id = (data as Meetup).id
     const opts = [
-      ...(timeMode === 'vote' ? timeOpts.map((t, i) => ({ meetup_id: id, kind: 'time', starts_at: new Date(t).toISOString(), position: i })) : []),
+      ...(timeMode === 'vote' ? timeOpts.map((tm, i) => ({ meetup_id: id, kind: 'time', starts_at: new Date(tm).toISOString(), position: i })) : []),
       ...(placeMode === 'vote' ? placeOpts.map((p, i) => ({ meetup_id: id, kind: 'place', label: p, position: i })) : []),
     ]
     if (opts.length) await supabase.from('meetup_options').insert(opts)
     await supabase.from('meetup_responses').insert({ meetup_id: id, user_id: me.id, answer: 'in' })
+    if (saveAsSpot && placeMode === 'fixed' && placeOpts[0] && !spots.some((s) => s.name.toLowerCase() === placeOpts[0].toLowerCase())) await saveSpot(group.id, me.id, placeOpts[0], pin)
     onCreated()
     onClose()
   }
@@ -502,36 +713,36 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
   const editList = (list: string[], set: (v: string[]) => void, i: number, v: string) => set(list.map((x, j) => (j === i ? v : x)))
 
   return (
-    <Sheet title="New meetup" onClose={onClose}>
+    <Sheet title={t('New meetup')} onClose={onClose}>
       <form className="stack" onSubmit={create}>
         <div className="kind-grid">
           {(Object.keys(KINDS) as MeetupKind[]).map((k) => (
             <button type="button" key={k} className={'kind-pick' + (k === kind ? ' on' : '')} onClick={() => setKind(k)}>
               <span>{KINDS[k].emoji}</span>
-              {KINDS[k].label}
+              {t(KINDS[k].label)}
             </button>
           ))}
         </div>
         <label className="field">
-          What?
-          <input id="meetup-title" className="input" placeholder={KINDS[kind].example} maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
+          {t('What?')}
+          <input id="meetup-title" className="input" placeholder={t(KINDS[kind].example)} maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
 
         <div className="field">
-          When?
+          {t('When?')}
           <div className="seg two">
             <button type="button" className={timeMode === 'fixed' ? 'on' : ''} onClick={() => setTimeMode('fixed')}>
-              Set a time
+              {t('Set a time')}
             </button>
             <button type="button" className={timeMode === 'vote' ? 'on' : ''} onClick={() => setTimeMode('vote')}>
-              Let friends vote
+              {t('Let friends vote')}
             </button>
           </div>
-          {(timeMode === 'fixed' ? times.slice(0, 1) : times).map((t, i) => (
+          {(timeMode === 'fixed' ? times.slice(0, 1) : times).map((tm, i) => (
             <div className="row" key={i}>
-              <input id={`meetup-time-${i}`} className="input grow" type="datetime-local" value={t} onChange={(e) => editList(times, setTimes, i, e.target.value)} />
+              <input id={`meetup-time-${i}`} className="input grow" type="datetime-local" value={tm} onChange={(e) => editList(times, setTimes, i, e.target.value)} />
               {timeMode === 'vote' && times.length > 2 && (
-                <button type="button" className="icon-btn" aria-label="Remove time" onClick={() => setTimes(times.filter((_, j) => j !== i))}>
+                <button type="button" className="icon-btn" aria-label={t('Remove time')} onClick={() => setTimes(times.filter((_, j) => j !== i))}>
                   ✕
                 </button>
               )}
@@ -539,19 +750,19 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
           ))}
           {timeMode === 'vote' && times.length < 4 && (
             <button type="button" className="link inline" onClick={() => setTimes([...times, times[times.length - 1]])}>
-              + Add another time
+              + {t('Add another time')}
             </button>
           )}
         </div>
 
         <div className="field">
-          Where?
+          {t('Where?')}
           <div className="seg two">
             <button type="button" className={placeMode === 'fixed' ? 'on' : ''} onClick={() => setPlaceMode('fixed')}>
-              Set a place
+              {t('Set a place')}
             </button>
             <button type="button" className={placeMode === 'vote' ? 'on' : ''} onClick={() => setPlaceMode('vote')}>
-              Let friends vote
+              {t('Let friends vote')}
             </button>
           </div>
           {(placeMode === 'fixed' ? places.slice(0, 1) : places).map((p, i) => (
@@ -559,13 +770,13 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
               <input
                 id={`meetup-place-${i}`}
                 className="input grow"
-                placeholder={i === 0 ? "e.g. Luigi's, my place, the park" : 'Another option'}
+                placeholder={i === 0 ? t("e.g. Luigi's, my place, the park") : t('Another option')}
                 maxLength={120}
                 value={p}
                 onChange={(e) => editList(places, setPlaces, i, e.target.value)}
               />
               {placeMode === 'vote' && places.length > 2 && (
-                <button type="button" className="icon-btn" aria-label="Remove place" onClick={() => setPlaces(places.filter((_, j) => j !== i))}>
+                <button type="button" className="icon-btn" aria-label={t('Remove place')} onClick={() => setPlaces(places.filter((_, j) => j !== i))}>
                   ✕
                 </button>
               )}
@@ -573,17 +784,40 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
           ))}
           {placeMode === 'vote' && places.length < 4 && (
             <button type="button" className="link inline" onClick={() => setPlaces([...places, ''])}>
-              + Add another place
+              + {t('Add another place')}
             </button>
+          )}
+          {placeMode === 'fixed' && spots.length > 0 && (
+            <div className="chips">
+              {spots.map((sp) => (
+                <button
+                  type="button"
+                  key={sp.id}
+                  className={'chip' + (places[0] === sp.name ? ' on' : '')}
+                  onClick={() => {
+                    setPlaces([sp.name, ...places.slice(1)])
+                    if (sp.lat != null && sp.lng != null) setPin({ lat: sp.lat, lng: sp.lng })
+                  }}
+                >
+                  {sp.emoji} {sp.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {placeMode === 'fixed' && places[0].trim() && !spots.some((sp) => sp.name.toLowerCase() === places[0].trim().toLowerCase()) && (
+            <label className="check-row">
+              <input type="checkbox" checked={saveAsSpot} onChange={(e) => setSaveAsSpot(e.target.checked)} />
+              ⭐ {t('Save as favourite spot')}
+            </label>
           )}
           {placeMode === 'fixed' &&
             (pinning ? (
               <div className="stack-s">
-                <p className="sub">Tap the map to set the meeting point. Friends who are "on their way" then see how far away they are.</p>
+                <p className="sub">{t('Tap the map to set the meeting point. Friends who are "on their way" then see how far away they are.')}</p>
                 <MiniMap pin={pin} onPick={setPin} height={200} />
                 <div className="row">
                   <button type="button" className="btn ghost small" onClick={useMyLocation}>
-                    Use my location
+                    {t('Use my location')}
                   </button>
                   <button
                     type="button"
@@ -593,24 +827,24 @@ export function NewMeetup({ draft, onClose, onCreated }: { draft: MeetupDraft; o
                       setPinning(false)
                     }}
                   >
-                    Remove pin
+                    {t('Remove pin')}
                   </button>
                 </div>
               </div>
             ) : (
               <button type="button" className="link inline" onClick={() => setPinning(true)}>
-                📍 Pin it on the map (optional)
+                📍 {t('Pin it on the map (optional)')}
               </button>
             ))}
         </div>
 
         <label className="field">
-          Anything else?
-          <textarea id="meetup-details" className="input" rows={2} maxLength={500} placeholder="Optional" value={details} onChange={(e) => setDetails(e.target.value)} />
+          {t('Anything else?')}
+          <textarea id="meetup-details" className="input" rows={2} maxLength={500} placeholder={t('Optional')} value={details} onChange={(e) => setDetails(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
         <button className="btn block" disabled={busy}>
-          Ask the group {KINDS[kind].emoji}
+          {t('Ask the group')} {KINDS[kind].emoji}
         </button>
       </form>
     </Sheet>

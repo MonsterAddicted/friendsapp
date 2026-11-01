@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError } from '../lib/app'
+import { t } from '../lib/i18n'
 import type { Group } from '../types'
 
 /** Create a new group or join one with an invite code. */
@@ -33,7 +34,7 @@ export function GroupForms({ onDone }: { onDone: (g: Group) => void }) {
   return (
     <div className="stack">
       <form className="card" onSubmit={join}>
-        <p className="label">Got an invite code?</p>
+        <p className="label">{t('Got an invite code?')}</p>
         <input
           id="invite-code"
           className="input code-input"
@@ -45,22 +46,22 @@ export function GroupForms({ onDone }: { onDone: (g: Group) => void }) {
           required
         />
         <button className="btn block" disabled={busy || code.length < 6}>
-          Join group
+          {t('Join group')}
         </button>
       </form>
       <form className="card" onSubmit={create}>
-        <p className="label">Start a new group</p>
+        <p className="label">{t('Start a new group')}</p>
         <input
           id="group-name"
           className="input"
-          placeholder="Group name, e.g. The Squad"
+          placeholder={t('Group name, e.g. The Squad')}
           maxLength={40}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <button className="btn ghost block" disabled={busy || !name.trim()}>
-          Create group
+          {t('Create group')}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
@@ -68,16 +69,17 @@ export function GroupForms({ onDone }: { onDone: (g: Group) => void }) {
   )
 }
 
-export function GroupStart({ onDone }: { onDone: (g: Group) => void }) {
+export function GroupStart({ onDone, error }: { onDone: (g: Group) => void; error?: string }) {
   return (
     <div className="center-screen">
       <div className="auth">
         <div className="logo-mark">🫂</div>
-        <h1 className="title">Find your people</h1>
-        <p className="muted tagline">Join your friends with their code, or start a group and invite them.</p>
+        <h1 className="title">{t('Find your people')}</h1>
+        <p className="muted tagline">{t('Join your friends with their code, or start a group and invite them.')}</p>
+        {error && <p className="error">{error}</p>}
         <GroupForms onDone={onDone} />
         <button className="link" onClick={() => supabase.auth.signOut()}>
-          Sign out
+          {t('Sign out')}
         </button>
       </div>
     </div>

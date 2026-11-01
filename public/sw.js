@@ -14,6 +14,9 @@ self.addEventListener('push', (e) => {
       body: d.body || '',
       tag: d.tag || undefined,
       renotify: !!d.tag,
+      // SOS stays on screen until tapped, and buzzes harder
+      requireInteraction: d.tag === 'sos',
+      vibrate: d.tag === 'sos' ? [300, 100, 300, 100, 300] : [80],
       icon: '/icon-192.png',
       badge: '/badge-72.png',
       data: { url: d.url || '/' },

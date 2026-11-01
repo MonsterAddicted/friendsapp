@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { niceError, useApp, useTick } from '../lib/app'
 import { clearPosition, locationErrorText, shareOnce } from '../lib/location'
 import type { LocationMode } from '../types'
+import { t } from '../lib/i18n'
+import { clock } from '../lib/time'
 
 const MODES: { id: LocationMode; label: string; help: string }[] = [
   { id: 'off', label: 'Off', help: 'Nobody sees where you are.' },
@@ -38,7 +40,7 @@ export function LocationModePicker() {
     setDone('')
     try {
       await shareOnce(me.id)
-      setDone('Location shared ✓')
+      setDone(t('Location shared ✓'))
     } catch (e) {
       setError(locationErrorText(e))
     }
@@ -46,14 +48,14 @@ export function LocationModePicker() {
 
   return (
     <div className="stack-s">
-      <div className="seg" role="radiogroup" aria-label="Location sharing">
+      <div className="seg" role="radiogroup" aria-label={t('Location sharing')}>
         {MODES.map((m) => (
           <button key={m.id} className={mode === m.id ? 'on' : ''} disabled={busy} onClick={() => choose(m.id)} role="radio" aria-checked={mode === m.id}>
-            {m.label}
+            {t(m.label)}
           </button>
         ))}
       </div>
-      <p className="sub">{MODES.find((m) => m.id === mode)?.help}</p>
+      <p className="sub">{t(MODES.find((m) => m.id === mode)?.help ?? '')}</p>
       {mode === 'manual' && (
         <button
           className="btn small"
@@ -64,7 +66,7 @@ export function LocationModePicker() {
             setBusy(false)
           }}
         >
-          Share my location now
+          {t('Share my location now')}
         </button>
       )}
       {mode !== 'off' && <Ghost />}
@@ -104,19 +106,19 @@ function Ghost() {
     return (
       <div className="ghost-row on">
         <span className="grow">
-          👻 Hidden until {new Date(me.ghost_until!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          👻 {t('Hidden until {time}', { time: clock(me.ghost_until!) })}
         </span>
         <button className="btn ghost small" onClick={() => set(null)}>
-          Show me again
+          {t('Show me again')}
         </button>
       </div>
     )
   return (
     <div className="ghost-row">
-      <span className="sub">👻 Ghost mode:</span>
+      <span className="sub">👻 {t('Ghost mode:')}</span>
       {GHOSTS.map((g) => (
         <button key={g.label} className="chip" onClick={() => set(g.until())}>
-          {g.label}
+          {t(g.label)}
         </button>
       ))}
     </div>

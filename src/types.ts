@@ -10,6 +10,19 @@ export interface Profile {
   ghost_until?: string | null
   timezone?: string | null
   notify?: Record<string, boolean>
+  busy_until?: string | null
+  bio?: string | null
+  favs?: Favs | null
+  birthday?: string | null
+  lang?: 'en' | 'de'
+  privacy?: Record<string, boolean> | null
+}
+
+export interface Favs {
+  food?: string
+  game?: string
+  music?: string
+  place?: string
 }
 
 export interface Member extends Profile {
@@ -32,6 +45,8 @@ export interface Status {
   emoji: string
   text: string
   created_at: string
+  song_url?: string | null
+  song_title?: string | null
 }
 
 export interface Loc {
@@ -40,6 +55,8 @@ export interface Loc {
   lng: number
   accuracy: number | null
   updated_at: string
+  battery?: number | null
+  charging?: boolean | null
 }
 
 export type MeetupKind = 'party' | 'eat' | 'sport' | 'chill' | 'gaming' | 'other'
@@ -128,4 +145,51 @@ export interface Wave {
   message: string
   seen: boolean
   created_at: string
+}
+
+export interface Spot {
+  id: string
+  group_id: string
+  created_by: string
+  name: string
+  emoji: string
+  lat: number | null
+  lng: number | null
+}
+
+export interface Sos {
+  id: string
+  group_id: string
+  user_id: string
+  lat: number | null
+  lng: number | null
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+}
+
+export interface Spin {
+  id: string
+  group_id: string
+  user_id: string
+  title: string
+  options: string[]
+  result: number
+  created_at: string
+}
+
+export interface BucketItem {
+  id: string
+  group_id: string
+  created_by: string
+  title: string
+  emoji: string
+  done_at: string | null
+  created_at: string
+}
+
+export interface Rating {
+  meetup_id: string
+  user_id: string
+  stars: number
 }

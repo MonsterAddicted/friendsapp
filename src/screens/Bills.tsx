@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError, useApp } from '../lib/app'
-import { Avatar, Sheet } from '../components/ui'
+import { Avatar, Section, Sheet } from '../components/ui'
+import { LOCALE, t } from '../lib/i18n'
 import type { Expense, ExpenseShare, Member } from '../types'
 
-const fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' })
+const fmt = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'EUR' })
 export const money = (cents: number) => fmt.format(cents / 100)
 
 export interface Debt {
@@ -29,10 +30,10 @@ export function useExpenses() {
 
   useEffect(() => {
     load()
-    let t: number | undefined
+    let timer: number | undefined
     const later = () => {
-      window.clearTimeout(t)
-      t = window.setTimeout(load, 300)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(load, 300)
     }
     const ch = supabase
       .channel('expenses-' + group.id)
@@ -40,7 +41,7 @@ export function useExpenses() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_shares' }, later)
       .subscribe()
     return () => {
-      window.clearTimeout(t)
+      window.clearTimeout(timer)
       supabase.removeChannel(ch)
     }
   }, [group.id, load])
@@ -103,7 +104,7 @@ export function SplitBillSheet({
 
   async function save(e: FormEvent) {
     e.preventDefault()
-    if (!valid) return setError('Enter an amount and pick at least one person.')
+    if (!valid) return setError(t('Enter an amount and pick at least one person.'))
     setBusy(true)
     setError('')
     const { data, error } = await supabase
@@ -123,21 +124,21 @@ export function SplitBillSheet({
   }
 
   const toggle = (id: string) => setBetween((b) => (b.includes(id) ? b.filter((x) => x !== id) : [...b, id]))
-  const name = (m: Member) => (m.id === me.id ? 'You' : m.display_name)
+  const name = (m: Member) => (m.id === me.id ? t('You') : m.display_name)
 
   return (
-    <Sheet title="Split a bill" onClose={onClose}>
+    <Sheet title={t('Split a bill')} onClose={onClose}>
       <form className="stack" onSubmit={save}>
         <label className="field">
-          How much? (€)
+          {t('How much? (€)')}
           <input id="bill-amount" className="input money-input" inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ''))} />
         </label>
         <label className="field">
-          For what?
-          <input id="bill-note" className="input" maxLength={80} placeholder="e.g. Pizza, cinema tickets" value={note} onChange={(e) => setNote(e.target.value)} />
+          {t('For what?')}
+          <input id="bill-note" className="input" maxLength={80} placeholder={t('e.g. Pizza, cinema tickets')} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         <div className="field">
-          Who paid?
+          {t('Who paid?')}
           <div className="chips wrap">
             {members.map((m) => (
               <button type="button" key={m.id} className={'chip' + (paidBy === m.id ? ' on' : '')} onClick={() => setPaidBy(m.id)}>
@@ -147,7 +148,7 @@ export function SplitBillSheet({
           </div>
         </div>
         <div className="field">
-          Split between {valid && <span className="sub">· {money(Math.ceil(cents / between.length))} each</span>}
+          {t('Split between')} {valid && <span className="sub">· {t('{amount} each', { amount: money(Math.ceil(cents / between.length)) })}</span>}
           <div className="chips wrap">
             {members.map((m) => (
               <button type="button" key={m.id} className={'chip' + (between.includes(m.id) ? ' on' : '')} onClick={() => toggle(m.id)}>
@@ -158,7 +159,7 @@ export function SplitBillSheet({
         </div>
         {error && <p className="error">{error}</p>}
         <button className="btn block" disabled={busy || !valid}>
-          Save {valid ? money(cents) : ''}
+          {t('Save')} {valid ? money(cents) : ''}
         </button>
       </form>
     </Sheet>
@@ -172,13 +173,13 @@ export function BalancesCard() {
   const [adding, setAdding] = useState(false)
   const byId = new Map(members.map((m) => [m.id, m]))
   const list = debts(expenses, shares)
-  const name = (id: string) => (id === me.id ? 'You' : byId.get(id)?.display_name ?? 'Someone')
+  const name = (id: string) => (id === me.id ? t('You') : byId.get(id)?.display_name ?? t('Someone'))
   const recent = expenses.filter((e) => !e.is_settlement).slice(0, 5)
 
   async function settle(d: Debt) {
     const { data, error } = await supabase
       .from('expenses')
-      .insert({ group_id: group.id, created_by: me.id, paid_by: d.from, amount_cents: d.cents, note: 'Paid back', is_settlement: true })
+      .insert({ group_id: group.id, created_by: me.id, paid_by: d.from, amount_cents: d.cents, note: t('Paid back'), is_settlement: true })
       .select()
       .single()
     if (!error) await supabase.from('expense_shares').insert({ expense_id: (data as Expense).id, user_id: d.to, amount_cents: d.cents })
@@ -191,40 +192,39 @@ export function BalancesCard() {
   }
 
   return (
-    <section className="stack-s">
-      <p className="label">Who owes who</p>
-      <div className="card list">
-        {list.length === 0 && <p className="sub">All square. Nobody owes anything. 🎉</p>}
+    <Section title={t('Who owes who')}>
+      <div className="card">
+        {list.length === 0 && <p className="sub">{t('All square. Nobody owes anything. 🎉')}</p>}
         {list.map((d) => (
           <div className="row" key={d.from + d.to}>
             <Avatar p={byId.get(d.from)} size={32} />
             <div className="grow">
               <div className="name small">
-                {name(d.from)} {d.from === me.id ? 'owe' : 'owes'} {d.to === me.id ? 'you' : name(d.to)}
+                {d.from === me.id ? t('You owe {name}', { name: name(d.to) }) : d.to === me.id ? t('{name} owes you', { name: name(d.from) }) : t('{a} owes {b}', { a: name(d.from), b: name(d.to) })}
               </div>
               <div className={'sub' + (d.to === me.id ? ' ok' : '')}>{money(d.cents)}</div>
             </div>
             {(d.from === me.id || d.to === me.id) && (
               <button className="btn ghost small" onClick={() => settle(d)}>
-                Mark paid
+                {t('Mark paid')}
               </button>
             )}
           </div>
         ))}
         <button className="btn ghost small" onClick={() => setAdding(true)}>
-          + Add expense
+          + {t('Add expense')}
         </button>
         {recent.length > 0 && (
           <div className="stack-s">
-            <p className="label">Recent</p>
+            <p className="label">{t('Recent')}</p>
             {recent.map((e) => (
               <div className="row" key={e.id}>
                 <span className="grow sub">
-                  {name(e.paid_by)} paid {money(e.amount_cents)}
+                  {t('{name} paid {amount}', { name: name(e.paid_by), amount: money(e.amount_cents) })}
                   {e.note ? ` · ${e.note}` : ''}
                 </span>
                 {e.created_by === me.id && (
-                  <button className="icon-btn faint" aria-label="Delete expense" onClick={() => remove(e.id)}>
+                  <button className="icon-btn faint" aria-label={t('Delete expense')} onClick={() => remove(e.id)}>
                     ✕
                   </button>
                 )}
@@ -234,6 +234,6 @@ export function BalancesCard() {
         )}
       </div>
       {adding && <SplitBillSheet onClose={() => setAdding(false)} onSaved={reload} />}
-    </section>
+    </Section>
   )
 }

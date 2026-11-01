@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { supabase } from '../lib/supabase'
 import { niceError, useApp, useTick } from '../lib/app'
 import { Avatar, Sheet } from '../components/ui'
+import { t } from '../lib/i18n'
+import { clock } from '../lib/time'
 import type { Availability, MeetupKind, UpFor } from '../types'
 
 export const UP_FOR: Record<UpFor, { emoji: string; label: string }> = {
@@ -28,7 +30,6 @@ const DURATIONS: { id: string; label: string; until: () => Date }[] = [
   },
 ]
 
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 /** "Who's free right now" block at the top of the feed. */
 export function FreeNow() {
@@ -74,7 +75,7 @@ export function FreeNow() {
   }
 
   const names = others.map((r) => byId.get(r.user_id)?.display_name ?? '?')
-  const namesText = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+  const namesText = names.length <= 2 ? names.join(t(' and ')) : t('{names} and {n} more', { names: names.slice(0, 2).join(', '), n: names.length - 2 })
 
   return (
     <section className="card free">
@@ -83,17 +84,17 @@ export function FreeNow() {
           <div className="free-dot" aria-hidden="true" />
           <div className="grow">
             <div className="name">
-              You're free until {clock(mine.until)} {UP_FOR[mine.up_for].emoji}
+              {t("You're free until {time}", { time: clock(mine.until) })} {UP_FOR[mine.up_for].emoji}
             </div>
-            <div className="sub">{mine.note || `Up for: ${UP_FOR[mine.up_for].label.toLowerCase()}`}</div>
+            <div className="sub">{mine.note || t('Up for: {what}', { what: t(UP_FOR[mine.up_for].label) })}</div>
           </div>
           <button className="btn ghost small" onClick={stop}>
-            Not free
+            {t('Not free')}
           </button>
         </div>
       ) : (
         <button className="btn free-btn block" onClick={() => setPicking(true)}>
-          🙋 I'm free
+          🙋 {t("I'm free")}
         </button>
       )}
 
@@ -101,28 +102,28 @@ export function FreeNow() {
         <div className="match">
           <div className="grow">
             <div className="name">
-              🔥 {namesText} {others.length === 1 ? 'is' : 'are'} free too!
+              🔥 {t(others.length === 1 ? '{names} is free too!' : '{names} are free too!', { names: namesText })}
             </div>
-            <div className="sub">Perfect moment to do something.</div>
+            <div className="sub">{t('Perfect moment to do something.')}</div>
           </div>
           <button className="btn small" onClick={startSomething}>
-            Start something
+            {t('Start something')}
           </button>
         </div>
       )}
 
       <div className="stack-s">
-        <p className="label">Free right now · {others.length}</p>
-        {others.length === 0 && <p className="sub">Nobody else yet. Tap "I'm free" so friends know.</p>}
+        <p className="label">{t('Free right now')} · {others.length}</p>
+        {others.length === 0 && <p className="sub">{t('Nobody else yet. Tap "I\'m free" so friends know.')}</p>}
         {others.map((r) => {
           const p = byId.get(r.user_id)!
           return (
             <div className="row" key={r.user_id}>
-              <Avatar p={p} size={36} />
+              <Avatar p={p} size={36} dot />
               <div className="grow">
                 <div className="name">{p.display_name}</div>
                 <div className="sub">
-                  until {clock(r.until)} · {UP_FOR[r.up_for].emoji} {r.note || UP_FOR[r.up_for].label}
+                  {t('until {time}', { time: clock(r.until) })} · {UP_FOR[r.up_for].emoji} {r.note || t(UP_FOR[r.up_for].label)}
                 </div>
               </div>
             </div>
@@ -162,36 +163,36 @@ function ImFreeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   }
 
   return (
-    <Sheet title="I'm free" onClose={onClose}>
+    <Sheet title={t("I'm free")} onClose={onClose}>
       <form className="stack" onSubmit={save}>
         <div className="field">
-          For how long?
+          {t('For how long?')}
           <div className="chips wrap">
             {DURATIONS.map((d) => (
               <button type="button" key={d.id} className={'chip' + (d.id === dur ? ' on' : '')} onClick={() => setDur(d.id)}>
-                {d.label}
+                {t(d.label)}
               </button>
             ))}
           </div>
         </div>
         <div className="field">
-          Up for
+          {t('Up for')}
           <div className="kind-grid">
             {(Object.keys(UP_FOR) as UpFor[]).map((u) => (
               <button type="button" key={u} className={'kind-pick' + (u === upFor ? ' on' : '')} onClick={() => setUpFor(u)}>
                 <span>{UP_FOR[u].emoji}</span>
-                {UP_FOR[u].label}
+                {t(UP_FOR[u].label)}
               </button>
             ))}
           </div>
         </div>
         <label className="field">
-          Note (optional)
-          <input id="free-note" className="input" maxLength={80} placeholder="e.g. at home, can come to the city" value={note} onChange={(e) => setNote(e.target.value)} />
+          {t('Note (optional)')}
+          <input id="free-note" className="input" maxLength={80} placeholder={t('e.g. at home, can come to the city')} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
         <button className="btn block" disabled={busy}>
-          Tell my friends 🙋
+          {t('Tell my friends')} 🙋
         </button>
       </form>
     </Sheet>
