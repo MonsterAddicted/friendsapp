@@ -4,6 +4,7 @@ import { niceError, useApp, useTick } from '../lib/app'
 import { ago } from '../lib/time'
 import { Avatar } from '../components/ui'
 import type { Status } from '../types'
+import { FreeNow } from './FreeNow'
 
 const QUICK = ['💬', '🍕', '🎮', '📚', '💼', '🏃', '🎵', '🚗', '🛋️', '😴', '🎉', '☕']
 
@@ -86,6 +87,7 @@ export function Feed() {
 
   return (
     <>
+      <FreeNow />
       <form className="card composer" onSubmit={post}>
         <div className="row">
           <Avatar p={me} size={40} />

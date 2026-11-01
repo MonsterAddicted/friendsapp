@@ -50,6 +50,9 @@ export interface Meetup {
   starts_at: string | null
   cancelled: boolean
   created_at: string
+  lat: number | null
+  lng: number | null
+  poll_locked: boolean
 }
 
 export type Answer = 'in' | 'maybe' | 'out'
@@ -58,4 +61,38 @@ export interface MeetupResponse {
   meetup_id: string
   user_id: string
   answer: Answer
+}
+
+export type UpFor = 'anything' | 'eat' | 'party' | 'sport' | 'chill' | 'gaming'
+
+export interface Availability {
+  user_id: string
+  until: string
+  up_for: UpFor
+  note: string | null
+  updated_at: string
+}
+
+export interface MeetupOption {
+  id: string
+  meetup_id: string
+  kind: 'time' | 'place'
+  label: string | null
+  starts_at: string | null
+  position: number
+}
+
+export interface Vote {
+  option_id: string
+  user_id: string
+}
+
+export interface OnTheWay {
+  meetup_id: string
+  user_id: string
+  lat: number
+  lng: number
+  arrived: boolean
+  started_at: string
+  updated_at: string
 }

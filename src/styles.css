@@ -13,6 +13,7 @@
   --on-accent: #ffffff;
   --ok: #22b36b;
   --ok-soft: #e3f7ec;
+  --ok-deep: #178a50;
   --maybe: #e8a200;
   --maybe-soft: #fff5d6;
   --no: #e5484d;
@@ -237,3 +238,31 @@ textarea.input { resize: none; }
 .code { font-size: 2.2rem; font-weight: 900; letter-spacing: .25em; padding-left: .25em; font-variant-numeric: tabular-nums; }
 .group-pick { border: 0; background: none; text-align: left; padding: 6px 2px; width: 100%; }
 .bottom-links { align-items: center; }
+
+/* ---------- I'm free ---------- */
+.free { gap: 14px; }
+.free-btn { background: var(--ok); box-shadow: 0 4px 0 var(--ok-deep); font-size: 1rem; }
+.free-btn:active:not(:disabled) { box-shadow: 0 1px 0 var(--ok-deep); }
+.free-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--ok); flex: none; box-shadow: 0 0 0 4px var(--ok-soft); }
+@media (prefers-reduced-motion: no-preference) { .free-dot { animation: breathe 2s ease-in-out infinite; } @keyframes breathe { 50% { box-shadow: 0 0 0 8px var(--ok-soft); } } }
+.match { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--accent-soft); border: 2px solid var(--accent); border-radius: 16px; padding: 12px; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+
+/* ---------- vote ---------- */
+.poll { display: flex; flex-direction: column; gap: 12px; padding: 12px; border-radius: 16px; background: var(--bg); }
+.poll-opt { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; font-weight: 800; }
+.poll-opt.on { border-color: var(--accent); }
+.poll-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); transition: width .25s; }
+.poll-opt > :not(.poll-fill) { position: relative; }
+.poll-check { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line-deep); display: grid; place-items: center; font-size: .8rem; flex: none; color: var(--on-accent); }
+.poll-opt.on .poll-check { background: var(--accent); border-color: var(--accent); }
+.poll-label { overflow-wrap: anywhere; }
+.poll-n { min-width: 1.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- on my way ---------- */
+.otw { display: flex; flex-direction: column; gap: 8px; border-top: 2px dashed var(--line); padding-top: 12px; }
+.sub.ok { color: var(--ok); font-weight: 800; }
+.link.inline { padding: 0; align-self: flex-start; font-size: .85rem; }
+.mini-map { width: 100%; border-radius: 14px; overflow: hidden; border: 2px solid var(--line); z-index: 0; }
+.pin-dot.small { width: 36px; height: 36px; font-size: 18px; border-width: 2px; }
+.pin-goal { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .35)); }

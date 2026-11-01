@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configured, supabase } from './lib/supabase'
-import { AppContext, store, useApp, type AppState } from './lib/app'
+import { AppContext, store, useApp, type AppState, type MeetupDraft, type Tab } from './lib/app'
+import { useOnTheWay } from './lib/onTheWay'
 import { useLiveLocation } from './lib/location'
 import { Avatar, Icons, Splash } from './components/ui'
 import { AuthScreen } from './screens/Auth'
@@ -9,7 +10,7 @@ import { ProfileSetup } from './screens/ProfileForm'
 import { GroupStart } from './screens/GroupStart'
 import { Feed } from './screens/Feed'
 import { MapScreen } from './screens/MapScreen'
-import { Meetups } from './screens/Meetups'
+import { Meetups, NewMeetup } from './screens/Meetups'
 import { GroupScreen } from './screens/GroupScreen'
 import type { Group, Member, Profile } from './types'
 
@@ -38,6 +39,12 @@ function SignedIn({ session }: { session: Session }) {
   const [groups, setGroups] = useState<Group[] | undefined>(undefined)
   const [groupId, setGroupId] = useState<string | null>(() => store.get('groupId'))
   const [members, setMembers] = useState<Member[]>([])
+  const [tab, setTab] = useState<Tab>(() => (store.get('tab') as Tab) || 'feed')
+  const [draft, setDraft] = useState<MeetupDraft | null>(null)
+  const goTab = useCallback((t: Tab) => {
+    setTab(t)
+    store.set('tab', t)
+  }, [])
 
   useEffect(() => {
     supabase
@@ -106,15 +113,18 @@ function SignedIn({ session }: { session: Session }) {
       />
     )
 
-  const state: AppState = { session, me, setMe, groups, group, selectGroup, reloadGroups, members }
+  const state: AppState = {
+    session, me, setMe, groups, group, selectGroup, reloadGroups, members, goTab,
+    openNewMeetup: (d) => setDraft(d ?? {}),
+  }
   return (
     <AppContext.Provider value={state}>
-      <Shell />
+      <Shell tab={tab} />
+      {draft && <NewMeetup draft={draft} onClose={() => setDraft(null)} onCreated={() => goTab('meetups')} />}
     </AppContext.Provider>
   )
 }
 
-type Tab = 'feed' | 'map' | 'meetups' | 'group'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'feed', label: 'Feed' },
   { id: 'map', label: 'Map' },
@@ -122,15 +132,10 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'group', label: 'Group' },
 ]
 
-function Shell() {
-  const { me, group } = useApp()
-  const [tab, setTab] = useState<Tab>(() => (store.get('tab') as Tab) || 'feed')
+function Shell({ tab }: { tab: Tab }) {
+  const { me, group, goTab: go } = useApp()
   useLiveLocation(me.id, me.location_mode)
-
-  function go(t: Tab) {
-    setTab(t)
-    store.set('tab', t)
-  }
+  useOnTheWay(me.id)
 
   return (
     <div className="app">

@@ -86,7 +86,7 @@ h1 { font-size: 1.6rem; font-weight: 900; margin: 0; text-wrap: balance; }
 <script>
 // Edit these values to update the page.
 const UPDATED = "Updated 1 Nov 2026";
-const NOW = "Base app is built and on GitHub. Waiting for your Supabase project so I can connect it and test everything for real.";
+const NOW = "Building the 3 features only friendsapp has: the \"I'm free\" button, time & place vote, and On my way. (No photos, so nothing needs moderating.)";
 const LIVE_URL = "";
 const SECTIONS = [
   ["Setup", [
@@ -97,8 +97,8 @@ const SECTIONS = [
     ["App skeleton", "React + Vite website, phone-first layout, bottom tab bar.", "done"],
     ["Look and feel", "Colours, Nunito font, chunky buttons, dark mode.", "done"],
     ["Database + security rules", "Written: profiles, groups, statuses, locations, meetups. Only group members can see group data.", "done"],
-    ["Connect + first real test", "Run the database setup, sign up two accounts, try every screen.", "todo"],
-    ["Create Supabase project", "You make a free project in the EU and send me the URL + public key.", "you"],
+    ["Connect + first real test", "Run database update 2, sign up two accounts, try every screen.", "you"],
+    ["Create Supabase project", "Free project in the EU, keys connected, database set up.", "done"],
     ["Login", "Sign in with email link or Google. Pick a name and username.", "done"],
   ]],
   ["Groups", [
@@ -116,6 +116,11 @@ const SECTIONS = [
   ["Meetups", [
     ["Open a meetup request", "Party, eat, sport, chill, gaming or other, with time and place.", "done"],
     ["Answer requests", "I'm in / Maybe / Can't, and see who's coming.", "done"],
+  ]],
+  ["Only in friendsapp", [
+    ["\"I'm free\" button", "Tap \"Free for 2h\" and what you're up for. See who's free right now. When friends are free at the same time, the app suggests a meetup.", "done"],
+    ["Time & place vote", "A meetup can offer 2–4 times or places. Everyone votes, the leader is shown, the creator locks it in.", "done"],
+    ["On my way", "After \"I'm in\", share your location only until you arrive. Friends see distance and time left. Stops by itself.", "done"],
   ]],
   ["Go live", [
     ["Website on Cloudflare Pages", "Auto-deploys from GitHub on every push.", "todo"],

@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Group, Member, Profile } from '../types'
+import type { Group, Member, MeetupKind, Profile } from '../types'
+
+export type Tab = 'feed' | 'map' | 'meetups' | 'group'
+export interface MeetupDraft {
+  kind?: MeetupKind
+  title?: string
+}
 
 export interface AppState {
   session: Session
@@ -11,6 +17,8 @@ export interface AppState {
   selectGroup: (id: string) => void
   reloadGroups: () => Promise<Group[]>
   members: Member[]
+  goTab: (t: Tab) => void
+  openNewMeetup: (draft?: MeetupDraft) => void
 }
 
 export const AppContext = createContext<AppState | null>(null)
