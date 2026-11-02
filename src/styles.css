@@ -584,3 +584,4 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .group-invite { gap: 12px; }
 .auth .group-invite { text-align: left; }
 .invite-friends { align-self: stretch; text-align: left; }
+.btn.google { gap: 10px; }

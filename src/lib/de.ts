@@ -682,4 +682,5 @@ export const DE: Record<string, string> = {
   "Already in that group": "Schon in dieser Gruppe",
   "That invite is gone": "Diese Einladung gibt es nicht mehr",
   "Invite from your friends ({n})": "Aus deinen Freunden einladen ({n})",
+  "Sign-in with Google or Apple didn't work. Try again, or use email.": "Die Anmeldung mit Google oder Apple hat nicht geklappt. Versuch es nochmal oder nimm deine E-Mail.",
 }

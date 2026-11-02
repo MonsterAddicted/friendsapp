@@ -13,9 +13,20 @@ const FAVS: { key: keyof Favs; emoji: string; label: string; example: string }[]
 ]
 
 /** Used for the first-time setup and for editing your profile later. */
-export function ProfileForm({ userId, existing, onSaved }: { userId: string; existing?: Profile; onSaved: (p: Profile) => void }) {
-  const [name, setName] = useState(existing?.display_name ?? '')
-  const [username, setUsername] = useState(existing?.username ?? '')
+export function ProfileForm({
+  userId,
+  existing,
+  prefill,
+  onSaved,
+}: {
+  userId: string
+  existing?: Profile
+  /** Suggestions for a new profile, e.g. the first name from a Google account */
+  prefill?: { name?: string; username?: string }
+  onSaved: (p: Profile) => void
+}) {
+  const [name, setName] = useState(existing?.display_name ?? prefill?.name ?? '')
+  const [username, setUsername] = useState(existing?.username ?? prefill?.username ?? '')
   const [emoji, setEmoji] = useState(existing?.emoji ?? EMOJIS[0])
   const [color, setColor] = useState(existing?.color ?? COLORS[0])
   const [bio, setBio] = useState(existing?.bio ?? '')
@@ -130,13 +141,39 @@ export function ProfileForm({ userId, existing, onSaved }: { userId: string; exi
   )
 }
 
-export function ProfileSetup({ userId, onDone }: { userId: string; onDone: (p: Profile) => void }) {
+/** First name and a username idea from a Google/Apple account (people can change both). */
+function suggestFrom(meta: Record<string, unknown> | undefined, email: string | undefined) {
+  const full = String(meta?.given_name ?? meta?.full_name ?? meta?.name ?? '').trim()
+  const name = (full.split(/\s+/)[0] ?? '').slice(0, 30)
+  const base = (name || (email ?? '').split('@')[0])
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 20)
+  return { name, username: base.length >= 3 ? base : '' }
+}
+
+export function ProfileSetup({
+  userId,
+  onDone,
+  meta,
+  email,
+}: {
+  userId: string
+  onDone: (p: Profile) => void
+  meta?: Record<string, unknown>
+  email?: string
+}) {
   return (
     <div className="center-screen">
       <div className="auth">
         <h1 className="title">{t('Make your profile')}</h1>
         <p className="muted tagline">{t('This is how your friends will see you.')}</p>
-        <ProfileForm userId={userId} onSaved={onDone} />
+        <ProfileForm userId={userId} onSaved={onDone} prefill={suggestFrom(meta, email)} />
         <button className="link" onClick={() => supabase.auth.signOut()}>
           {t('Sign out')}
         </button>

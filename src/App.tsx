@@ -187,7 +187,7 @@ function SignedIn({ session }: { session: Session }) {
   )
 
   if (me === undefined) return <Splash />
-  if (me === null) return <ProfileSetup userId={uid} onDone={setMe} />
+  if (me === null) return <ProfileSetup userId={uid} onDone={setMe} meta={session.user.user_metadata} email={session.user.email} />
   if (groups === undefined) return <Splash />
   if (!group)
     return (

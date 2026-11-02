@@ -26,8 +26,12 @@ The app follows the phone language, or the choice in Settings → Look → Langu
 `npm run dev`, then open `http://localhost:5173/?preview&tab=feed` (tabs: feed, map, meetups, group, me; add `&theme=dark`, `&lang=de`, `&sheet=person|wheel|sos`).
 Fake people, no login. Never part of the live site.
 
-## Sign in with Apple (later, for the App Store)
-Needs an Apple Developer account. Set it up in Supabase (Authentication → Providers → Apple), then add `VITE_APPLE_LOGIN=1` to `.env.production` and the button appears.
+## Sign in with Google / Apple
+The buttons appear by themselves as soon as the provider is switched on in Supabase (Authentication → Sign In / Providers). Nothing to change in the code.
+- **Google:** Google Cloud Console → OAuth client (Web application). Authorised redirect URI: `https://mypulupyvomypktshbbg.supabase.co/auth/v1/callback`. Paste Client ID + Client secret into Supabase → Google.
+- **Apple (later, for the App Store):** needs an Apple Developer account.
+- Supabase → Authentication → URL Configuration: Site URL `https://friendsapp-2je.pages.dev`, Redirect URLs `https://friendsapp-2je.pages.dev/**` and `http://localhost:5173/**`.
+- Dev check without setup: `http://localhost:5173/?providers` shows both buttons.
 
 ## Deploy (Cloudflare Worker)
 Connected to GitHub: every push to `main` builds (`npm run build`) and deploys (`npx wrangler deploy`).
