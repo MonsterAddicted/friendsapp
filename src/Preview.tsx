@@ -1,5 +1,5 @@
 // Dev-only preview with fake people, for checking the look without signing in.
-// Open http://localhost:5173/?preview&tab=feed (also: &theme=dark, &lang=de, &sheet=person|settings|wheel|sos|busy).
+// Open http://localhost:5173/?preview&tab=feed (also: &theme=dark, &lang=de, &sheet=person|wheel|sos|tutorial|friends|nearby|qr|friend).
 // Never included in the live site: main.tsx only loads it when import.meta.env.DEV is true.
 import { useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -15,6 +15,8 @@ import { SettingsScreen } from './screens/Settings'
 import { PersonSheet } from './screens/Waves'
 import { WheelSheet } from './screens/Wheel'
 import { Tutorial } from './screens/Tutorial'
+import { FriendsSheet } from './screens/Friends'
+import type { FriendRow, FriendsState } from './lib/friends'
 import type { Group, Member } from './types'
 
 const today = new Date()
@@ -26,6 +28,13 @@ const MEMBERS: Member[] = [
   { id: 'lea', username: 'lea', display_name: 'Lea', emoji: '🦊', color: '#c04cf2', location_mode: 'live', role: 'member', bio: 'Always 5 min late 🙈', favs: { food: 'Sushi', music: 'Taylor Swift', place: 'The lake' }, birthday: bday },
   { id: 'max', username: 'max', display_name: 'Max', emoji: '🐼', color: '#13c2a3', location_mode: 'manual', role: 'member', busy_until: new Date(Date.now() + 2 * 3600e3).toISOString() },
   { id: 'jan', username: 'jan', display_name: 'Jan', emoji: '🤖', color: '#5b6cff', location_mode: 'off', role: 'member' },
+]
+const ago = (days: number) => new Date(Date.now() - days * 864e5).toISOString()
+const FRIENDS: FriendRow[] = [
+  { id: 'lea', username: 'lea', display_name: 'Lea', emoji: '🦊', color: '#c04cf2', state: 'friend', since: ago(40) },
+  { id: 'max', username: 'max', display_name: 'Max', emoji: '🐼', color: '#13c2a3', state: 'friend', since: ago(12) },
+  { id: 'nina', username: 'nina.k', display_name: 'Nina', emoji: '🌸', color: '#ff5d8f', state: 'incoming', since: ago(0) },
+  { id: 'tom', username: 'tommy', display_name: 'Tom', emoji: '🏀', color: '#f5a524', state: 'outgoing', since: ago(1) },
 ]
 const GROUP: Group = { id: '00000000-0000-0000-0000-000000000000', name: 'The Squad', invite_code: 'K7PX2Q', created_by: 'me' }
 
@@ -50,6 +59,26 @@ export default function Preview() {
     toggleMute: () => {},
     isAdmin: true,
     openTutorial: () => setSheet('tutorial'),
+    friends: {
+      rows: FRIENDS,
+      invites:
+        sheet === 'friends'
+          ? [{ group_id: 'g3', group_name: 'Basketball Fridays', invited_by: FRIENDS[1], members: 6, created_at: ago(0) }]
+          : [],
+      waiting: sheet === 'friends' ? 2 : 1,
+      reload: async () => {},
+      open: () => setSheet('friends'),
+      demo: {
+        suggestions: [
+          { id: 'jan', username: 'jan', display_name: 'Jan', emoji: '🤖', color: '#5b6cff', via: 'The Squad', mutual: 0 },
+          { id: 'sara', username: 'sara', display_name: 'Sara', emoji: '🎧', color: '#2bb0ed', via: null, mutual: 3 },
+        ],
+        nearby: [
+          { id: 'ben', username: 'ben_10', display_name: 'Ben', emoji: '🛹', color: '#7c5cff', meters: 12 },
+          { id: 'nina', username: 'nina.k', display_name: 'Nina', emoji: '🌸', color: '#ff5d8f', meters: 31 },
+        ],
+      },
+    } satisfies FriendsState,
     sos: {
       alerts: sosOn ? [{ id: 's1', group_id: GROUP.id, user_id: 'lea', lat: 48.2, lng: 16.37, created_at: new Date(Date.now() - 120e3).toISOString(), updated_at: new Date().toISOString(), resolved_at: null }] : [],
       mine: undefined,
@@ -99,6 +128,7 @@ export default function Preview() {
                 {x === 'me' ? (
                   <span className="tab-avatar">
                     <Avatar p={ME} size={20} />
+                    <span className="tab-badge" />
                   </span>
                 ) : (
                   Icons[x as keyof typeof Icons]
@@ -111,6 +141,10 @@ export default function Preview() {
         {sheet === 'person' && <PersonSheet person={MEMBERS[1]} onClose={() => setSheet(null)} />}
         {sheet === 'wheel' && <WheelSheet onClose={() => setSheet(null)} />}
         {sheet === 'tutorial' && <Tutorial onDone={() => setSheet(null)} />}
+        {sheet === 'friends' && <FriendsSheet onClose={() => setSheet(null)} />}
+        {sheet === 'nearby' && <FriendsSheet onClose={() => setSheet(null)} start={{ name: 'nearby' }} />}
+        {sheet === 'qr' && <FriendsSheet onClose={() => setSheet(null)} start={{ name: 'qr' }} />}
+        {sheet === 'friend' && <FriendsSheet onClose={() => setSheet(null)} start={{ name: 'friend', id: 'lea' }} />}
       </OnlineContext.Provider>
     </AppContext.Provider>
   )

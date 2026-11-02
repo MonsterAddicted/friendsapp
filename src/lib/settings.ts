@@ -72,5 +72,5 @@ export function applyLook() {
 }
 
 /** Privacy switches saved in the profile (so they work on every device). All on by default. */
-export type PrivacyKey = 'online' | 'battery' | 'seen'
+export type PrivacyKey = 'online' | 'battery' | 'seen' | 'findable'
 export const privacyOn = (privacy: Record<string, boolean> | undefined | null, key: PrivacyKey) => privacy?.[key] !== false

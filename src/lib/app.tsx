@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { t } from './i18n'
 import type { SosState } from './sos'
+import type { FriendsState } from './friends'
 import type { Group, Member, MeetupKind, Profile } from '../types'
 
 export type Tab = 'feed' | 'map' | 'meetups' | 'group' | 'me'
@@ -33,6 +34,8 @@ export interface AppState {
   sos: SosState
   /** Show the first-time tour again. */
   openTutorial: () => void
+  /** Friends, requests and group invites. friends.open() shows the Friends sheet. */
+  friends: FriendsState
 }
 
 export const AppContext = createContext<AppState | null>(null)
@@ -62,5 +65,5 @@ export function niceError(e: { message?: string; code?: string } | null | undefi
   if (e.code === 'PGRST205' || e.code === 'PGRST204' || e.code === '42P01' || e.code === 'PGRST202' || e.code === '42703') return t('This needs the latest database update. Ask the app owner to run it.')
   if (e.message === 'No group with that code') return t('No group with that code')
   if (e.message === 'Only admins can do that') return t('Only admins can do that')
-  return e.message || t('Something went wrong. Try again.')
+  return e.message ? t(e.message) : t('Something went wrong. Try again.')
 }

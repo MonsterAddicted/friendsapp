@@ -9,6 +9,7 @@ import { ProfileForm } from './ProfileForm'
 import { NotificationsCard } from './Notifications'
 import { birthdayText } from './Waves'
 import { resetGroupIntro } from './Tutorial'
+import { FriendsCard } from './Friends'
 
 const SHOW: { key: keyof DeviceSettings; label: string; help: string }[] = [
   { key: 'showFree', label: '"I\'m free" card', help: 'Top of the feed' },
@@ -23,6 +24,7 @@ const PRIVACY: { key: PrivacyKey; label: string; help: string }[] = [
   { key: 'online', label: 'Show when I\'m online', help: 'Green dot while you have the app open' },
   { key: 'seen', label: 'Seen by', help: 'Friends see that you saw their posts. Turn off and you won\'t see theirs either.' },
   { key: 'battery', label: 'Share my battery', help: 'Shown next to your pin on the map (where the phone allows it)' },
+  { key: 'findable', label: 'Findable by @username', help: 'People can find you with your exact username and see you under "People you may know". Your QR code and Add nearby always work.' },
 ]
 
 export function SettingsScreen() {
@@ -55,6 +57,8 @@ export function SettingsScreen() {
           <span className="btn ghost small">{t('Edit')}</span>
         </button>
       </Section>
+
+      <FriendsCard />
 
       <Section title={t('Location sharing')}>
         <div className="card">

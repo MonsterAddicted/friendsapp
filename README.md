@@ -14,7 +14,7 @@ Website first (Cloudflare Pages), then Android/iOS with Capacitor — same code,
 3. `npm run dev` → open the shown link (also works on your phone in the same Wi-Fi).
 
 ## Supabase setup (once)
-1. SQL Editor → New query → paste all of `supabase/schema.sql` → Run. Then the updates in order: `002_…`, `003_…`, `004_round3.sql` (+ push address/secret), `005_round4.sql`.
+1. SQL Editor → New query → paste all of `supabase/schema.sql` → Run. Then the updates in order: `002_…`, `003_…`, `004_round3.sql` (+ push address/secret), `005_round4.sql`, `006_friends.sql`.
 2. Authentication → Sign In / Providers → Email: turn **off** "Confirm email" (so friends can sign up instantly).
 3. Authentication → URL Configuration: add the Cloudflare URL (and `http://localhost:5173`) to Redirect URLs.
 

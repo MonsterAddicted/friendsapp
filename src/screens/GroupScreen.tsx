@@ -10,6 +10,7 @@ import { BalancesCard } from './Bills'
 import { RegionCard } from './Countdowns'
 import { BucketList } from './Bucket'
 import { SpotsCard } from './Spots'
+import { InviteFromFriends } from './Friends'
 
 export const inviteLink = (code: string) => `${window.location.origin}/?join=${code}`
 
@@ -138,6 +139,7 @@ function InviteCard() {
           {showQr ? t('Code') : t('QR')}
         </button>
       </div>
+      <InviteFromFriends />
     </section>
   )
 }

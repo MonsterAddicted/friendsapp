@@ -20,15 +20,24 @@ import { GroupScreen } from './screens/GroupScreen'
 import { SettingsScreen } from './screens/Settings'
 import { PersonSheet, WaveInbox } from './screens/Waves'
 import { Tutorial, tutorialSeen } from './screens/Tutorial'
+import { AddFromLink, FriendsSheet, StartExtras } from './screens/Friends'
+import { useFriends } from './lib/friends'
 import type { Group, Member, Profile } from './types'
 
-// Invite links look like https://…/?join=ABC123. Remember the code until the person is signed in.
+// Invite links look like https://…/?join=ABC123, personal "add me" links like /?add=<user id>.
+// Remember them until the person is signed in. Friend notifications open /?tab=me&friends=1.
+let openFriendsOnStart = false
 ;(() => {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('join')
-  if (code && /^[A-Za-z0-9]{6}$/.test(code)) {
-    store.set('pendingJoin', code.toUpperCase())
+  const add = params.get('add')
+  if (code && /^[A-Za-z0-9]{6}$/.test(code)) store.set('pendingJoin', code.toUpperCase())
+  if (add && /^[0-9a-f-]{36}$/i.test(add)) store.set('pendingAdd', add.toLowerCase())
+  openFriendsOnStart = params.get('friends') === '1'
+  if (params.has('join') || params.has('add') || params.has('friends')) {
     params.delete('join')
+    params.delete('add')
+    params.delete('friends')
     const rest = params.toString()
     window.history.replaceState(null, '', '/' + (rest ? '?' + rest : ''))
   }
@@ -188,6 +197,15 @@ function SignedIn({ session }: { session: Session }) {
           await reloadGroups()
           selectGroup(g.id)
         }}
+        extra={
+          <StartExtras
+            meId={uid}
+            onJoined={async (id) => {
+              await reloadGroups()
+              selectGroup(id)
+            }}
+          />
+        }
       />
     )
 
@@ -227,7 +245,7 @@ function SignedInShell({
   draft,
   closeDraft,
 }: {
-  base: Omit<AppState, 'sos' | 'openTutorial'>
+  base: Omit<AppState, 'sos' | 'openTutorial' | 'friends'>
   tab: Tab
   person: string | null
   closePerson: () => void
@@ -237,7 +255,10 @@ function SignedInShell({
   const online = useOnline(base.group.id, base.me.id, privacyOn(base.me.privacy, 'online'))
   const sos = useSos(base.group.id, base.me.id)
   const [tour, setTour] = useState(() => !tutorialSeen(base.me.id))
-  const state: AppState = { ...base, sos, openTutorial: () => setTour(true) }
+  const [friendsOpen, setFriendsOpen] = useState(openFriendsOnStart)
+  const [adding, setAdding] = useState<string | null>(() => store.get('pendingAdd'))
+  const friends = useFriends(base.me.id, () => setFriendsOpen(true))
+  const state: AppState = { ...base, sos, friends, openTutorial: () => setTour(true) }
   const p = person ? (base.members.find((m) => m.id === person) ?? (person === base.me.id ? base.me : null)) : null
 
   return (
@@ -255,6 +276,18 @@ function SignedInShell({
             }}
           />
         )}
+        {friendsOpen && !tour && <FriendsSheet onClose={() => setFriendsOpen(false)} />}
+        {adding && !tour && (
+          <AddFromLink
+            meId={base.me.id}
+            id={adding}
+            onDone={() => {
+              store.remove('pendingAdd')
+              setAdding(null)
+              friends.reload()
+            }}
+          />
+        )}
       </OnlineContext.Provider>
     </AppContext.Provider>
   )
@@ -269,7 +302,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 function Shell({ tab }: { tab: Tab }) {
-  const { me, group, groups, goTab: go } = useApp()
+  const { me, group, groups, goTab: go, friends } = useApp()
   const [switching, setSwitching] = useState(false)
   useLiveLocation(me.id, me.location_mode)
   useOnTheWay(me.id)
@@ -305,6 +338,7 @@ function Shell({ tab }: { tab: Tab }) {
             {x.id === 'me' ? (
               <span className="tab-avatar">
                 <Avatar p={me} size={20} />
+                {friends.waiting > 0 && <span className="tab-badge" aria-label={t('{n} waiting', { n: friends.waiting })} />}
               </span>
             ) : (
               Icons[x.id as keyof typeof Icons]

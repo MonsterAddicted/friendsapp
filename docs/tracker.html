@@ -86,7 +86,7 @@ h1 { font-size: 1.6rem; font-weight: 900; margin: 0; text-wrap: balance; }
 <script>
 // Edit these values to update the page.
 const UPDATED = "Updated 1 Nov 2026";
-const NOW = "Round 4 is built and live: all 26 features, a cleaner look, a Settings tab, German and a first-time tutorial. The database update is in, so every feature works now. Next: test on your phone with a friend.";
+const NOW = "Friends are built: friend requests, Add nearby, your own QR code, @username search and inviting friends into groups. Your turn: paste database update 6 (on your clipboard) into Supabase → SQL Editor → Run. Then test on your phone with a friend.";
 const LIVE_URL = "https://friendsapp-2je.pages.dev";
 const SECTIONS = [
   ["Setup", [
@@ -170,6 +170,15 @@ const SECTIONS = [
     ["New look", "Calmer cards, softer buttons, frosted top and tab bar, real dark mode, group switcher on the title.", "done"],
     ["Settings tab", "Theme, language, show/hide cards, vibration, animations, privacy (online dot, seen by, battery).", "done"],
     ["First-time tutorial", "A 6-slide tour of the app, plus a \"Getting started\" checklist the first time you open a group.", "done"],
+  ]],
+  ["Friends", [
+    ["Run database update 6", "One paste in Supabase (on your clipboard). Switches on everything below.", "you"],
+    ["Friends list + requests", "Add people, they say yes or no. Friends see your profile, never your location.", "done"],
+    ["Add nearby", "Two people open it at the same time and see each other. Nobody else can find you.", "done"],
+    ["Personal QR code", "Your own \"add me\" QR code and link.", "done"],
+    ["Search by @username", "Exact username only, so nobody can browse users. Can be turned off in Privacy.", "done"],
+    ["People you may know", "People from your groups and friends of your friends.", "done"],
+    ["Invite friends into groups", "They get asked first. Also on the Group tab's invite card.", "done"],
   ]],
   ["Go live", [
     ["Website on Cloudflare Pages", "Live at friendsapp-2je.pages.dev. Auto-deploys from GitHub on every push.", "done"],

@@ -13,6 +13,7 @@ export const NOTIFY_KINDS: { id: string; label: string; help: string }[] = [
   { id: 'nudge', label: 'Daily check-in', help: 'Once a day: "What are you doing?"' },
   { id: 'nearby', label: 'Nearby friends', help: 'When a friend is under 300 m away (both on Live)' },
   { id: 'birthdays', label: 'Birthdays', help: 'In the morning on a friend\'s birthday' },
+  { id: 'friends', label: 'Friends', help: 'Friend requests and group invites' },
 ]
 
 export function NotificationsCard() {

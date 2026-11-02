@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { niceError } from '../lib/app'
@@ -69,7 +70,7 @@ export function GroupForms({ onDone }: { onDone: (g: Group) => void }) {
   )
 }
 
-export function GroupStart({ onDone, error }: { onDone: (g: Group) => void; error?: string }) {
+export function GroupStart({ onDone, error, extra }: { onDone: (g: Group) => void; error?: string; extra?: ReactNode }) {
   return (
     <div className="center-screen">
       <div className="auth">
@@ -77,6 +78,7 @@ export function GroupStart({ onDone, error }: { onDone: (g: Group) => void; erro
         <h1 className="title">{t('Find your people')}</h1>
         <p className="muted tagline">{t('Join your friends with their code, or start a group and invite them.')}</p>
         {error && <p className="error">{error}</p>}
+        {extra}
         <GroupForms onDone={onDone} />
         <button className="link" onClick={() => supabase.auth.signOut()}>
           {t('Sign out')}
